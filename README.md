@@ -242,18 +242,6 @@ outputs/readme_demo/spectrogram.png
 outputs/readme_demo/config.json
 ```
 
-### IQ Time Domain
-
-![IQ Time Domain](outputs/readme_demo/iq_time.png)
-
-### Power Spectral Density
-
-![PSD](outputs/readme_demo/psd.png)
-
-### Spectrogram
-
-![Spectrogram](outputs/readme_demo/spectrogram.png)
-
 ## Version History
 
 ### v0.2
