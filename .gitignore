@@ -7,3 +7,4 @@ outputs/
 *.wav
 .DS_Store
 .vscode/
+change_log_internal.txt
