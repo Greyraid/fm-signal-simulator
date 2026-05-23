@@ -6,3 +6,4 @@ outputs/
 *.npz
 *.wav
 .DS_Store
+.vscode/
