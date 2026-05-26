@@ -6,9 +6,9 @@ This project is designed as a learning and research tool for digital signal proc
 
 ## Current Version
 
-**v0.3**
+**v0.4**
 
-Version 0.3 adds FM demodulation, allowing the simulator to recover audio from the impaired FM IQ signal and save it as a `.wav` file. This update also improves output path handling, fixes IQ metadata saving, and cleans up the terminal run summary.
+Version 0.4 adds repeatable AWGN noise generation with `--seed`, preserves clean IQ samples before impairments, and adds comparison plots for signal analysis. This update also adds a recovered audio snippet plot, fixes tone jammer power output in the terminal summary, and cleans up minor spelling/output issues.
 
 ## Signal Chain
 
@@ -18,6 +18,8 @@ WAV audio
 Normalized / resampled audio
     ↓
 FM IQ modulation
+    ↓
+Clean IQ copy saved for comparison
     ↓
 Signal impairments
     ↓
@@ -50,8 +52,9 @@ Optional config JSON export
 - Optional interactive plot display
 - Optional run configuration export to JSON
 - Organized output directory support
-- Recovered audio path routing through `--output-dir`
-- Cleaner terminal run summary
+- Repeatable AWGN noise generation with `--seed`
+- Clean vs impaired IQ PSD comparison plot
+- Recovered audio snippet plot
 
 ## Project Structure
 
@@ -119,6 +122,14 @@ py -m fmsim.cli examples/sample_audio.wav --mode nbfm
 py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20
 ```
 
+### Seed
+
+```bash
+py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20 --seed 123
+```
+
+Using the same seed with the same settings produces the same AWGN noise sequence.
+
 ### Add Frequency Offset
 
 ```bash
@@ -172,7 +183,9 @@ This creates:
 ```text
 outputs/plot_test/iq_time.png
 outputs/plot_test/psd.png
+outputs/plot_test/psd_comparison.png
 outputs/plot_test/spectrogram.png
+outputs/plot_test/recovered_audio.png
 ```
 
 ### Show Plots
@@ -220,7 +233,7 @@ outputs/demod_test/noisy_recovered.wav
 ### Full Examples
 
 ```bash
-py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20 --freq-offset 1000 --tone-jammer-hz 25000 --tone-jammer-power-db -15 --dropout-start 2 --dropout-duration 0.25 --dc-i 0.05 --dc-q 0.02 --iq-gain-imbalance-db 2 --iq-phase-imbalance-deg 5 --save-iq --save-plots --save-config --output-dir outputs/full_test
+py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20 --seed 123 --freq-offset 1000 --tone-jammer-hz 25000 --tone-jammer-power-db -15 --dropout-start 2 --dropout-duration 0.25 --dc-i 0.05 --dc-q 0.02 --iq-gain-imbalance-db 2 --iq-phase-imbalance-deg 5 --save-iq --save-plots --save-config --demod-output --output-dir outputs/full_test
 ```
 
 Expected output:
@@ -231,7 +244,10 @@ outputs/full_test/
   config.json
   iq_time.png
   psd.png
+  psd_comparison.png
   spectrogram.png
+  recovered_audio.png
+  recovered.wav
 ```
 
 ## Command-Line Options
@@ -243,6 +259,7 @@ outputs/full_test/
 | `--fs-iq` | IQ sample rate |
 | `--deviation` | Custom FM deviation in Hz |
 | `--snr-db` | Signal-to-noise ratio in dB |
+| `--seed` | Random seed for repeatable AWGN noise generation |
 | `--freq-offset` | Frequency offset in Hz |
 | `--tone-jammer-hz` | Tone jammer frequency in Hz |
 | `--tone-jammer-power-db` | Tone jammer power in dB |
@@ -265,7 +282,7 @@ outputs/full_test/
 To generate example plots for this README, run:
 
 ```bash
-py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20 --freq-offset 1000 --dc-i 0.05 --dc-q 0.02 --iq-gain-imbalance-db 2 --iq-phase-imbalance-deg 5 --save-plots --save-config --output-dir outputs/readme_demo
+py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20 --seed 123 --freq-offset 1000 --tone-jammer-hz 25000 --tone-jammer-power-db -10 --dc-i 0.05 --dc-q 0.02 --iq-gain-imbalance-db 2 --iq-phase-imbalance-deg 5 --save-plots --save-config --demod-output --output-dir outputs/readme_demo
 ```
 
 After running that command, the following files should be created:
@@ -273,11 +290,22 @@ After running that command, the following files should be created:
 ```text
 outputs/readme_demo/iq_time.png
 outputs/readme_demo/psd.png
+outputs/readme_demo/psd_comparison.png
 outputs/readme_demo/spectrogram.png
+outputs/readme_demo/recovered_audio.png
+outputs/readme_demo/recovered.wav
 outputs/readme_demo/config.json
 ```
 
 ## Version History
+
+### v0.4
+- Added `--seed` for repeatable AWGN noise generation
+- Added clean IQ preservation before impairments
+- Added clean vs impaired IQ PSD comparison plot
+- Added recovered audio snippet plot
+- Fixed tone jammer power dB terminal output
+- Fixed minor spelling and terminal output issues
 
 ### v0.3
 
