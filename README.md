@@ -6,9 +6,9 @@ This project is designed as a learning and research tool for digital signal proc
 
 ## Current Version
 
-**v0.2**
+**v0.3**
 
-Version 0.2 expands the simulator with cleaner output handling, optional saved plots, optional IQ file export, saved run configuration, and additional SDR-style signal impairments.
+Version 0.3 adds FM demodulation, allowing the simulator to recover audio from the impaired FM IQ signal and save it as a `.wav` file. This update also improves output path handling, fixes IQ metadata saving, and cleans up the terminal run summary.
 
 ## Signal Chain
 
