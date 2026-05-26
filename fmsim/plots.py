@@ -18,6 +18,8 @@ def plot_iq_time(iq: np.ndarray, fs_iq:int, seconds: float = 0.005, save_path: s
     if save_path:
         plt.savefig(save_path, dpi=200, bbox_inches="tight")
 
+    plt.close()
+
 def plot_psd(iq: np.ndarray, fs_iq: int, save_path: str | None = None) -> None:
     freqs,psd = signal.welch(
         iq,
@@ -39,6 +41,50 @@ def plot_psd(iq: np.ndarray, fs_iq: int, save_path: str | None = None) -> None:
 
     if save_path:
         plt.savefig(save_path, dpi=200, bbox_inches='tight')
+
+    plt.close()
+
+def plot_psd_comparison(iq_clean : np.ndarray, iq_impaired: np.ndarray, fs_iq: int, save_path: str) -> None:
+    """
+    Plot clean and impaired IQ power spectral density on the same graph.
+    """
+
+    f_clean, psd_clean = signal.welch(
+        iq_clean,
+        fs=fs_iq,
+        nperseg=2048,
+        return_onesided=False
+    )
+
+    f_impaired, psd_impaired = signal.welch(
+        iq_impaired,
+        fs=fs_iq,
+        nperseg=2048,
+        return_onesided=False
+    )
+
+    f_clean = np.fft.fftshift(f_clean)
+    psd_clean = np.fft.fftshift(psd_clean)
+
+    f_impaired = np.fft.fftshift(f_impaired)
+    psd_impaired = np.fft.fftshift(psd_impaired)
+
+    plt.figure(figsize=(10, 5))
+
+    plt.plot(f_clean / 1000, 10 * np.log10(psd_clean + 1e-12), label="Clean IQ")
+    plt.plot(f_impaired / 1000, 10 * np.log10(psd_impaired + 1e-12), label="Impaired IQ")
+
+    plt.title("PSD Comparison: CLean vs Impaired IQ")
+    plt.xlabel("Frequency Offset (kHz)")
+    plt.ylabel("Power Spectral Density (dB/Hz)")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path)
+
+    plt.close()
 
 def plot_spectrogram(iq: np.ndarray, fs_iq: int, save_path: str | None = None) -> None:
     freqs, times, Sxx = signal.spectrogram(
@@ -64,4 +110,37 @@ def plot_spectrogram(iq: np.ndarray, fs_iq: int, save_path: str | None = None) -
     if save_path:
         plt.savefig(save_path, dpi=200, bbox_inches='tight')
 
+    plt.close()
 
+def plot_recovered_audio(
+        audio: np.ndarray,
+        fs_audio: int,
+        start_time_s: float = 0.0,
+        seconds: float = 0.25,
+        save_path: str | None = None
+) -> None:
+    """
+    Plote a short section of recovered demodulated audio in the time domain.        
+    """
+
+    start_idx = int(start_time_s * fs_audio)
+    end_idx = start_idx + int(seconds * fs_audio)
+
+    start_idx = max(0, start_idx)
+    end_idx = min(len(audio), end_idx)
+
+    audio_segment = audio[start_idx:end_idx]
+    t = np.arange(start_idx, end_idx) / fs_audio
+
+    plt.figure(figsize=(10,4))
+    plt.plot(t, audio_segment)
+    plt.xlabel("Time [s]")
+    plt.ylabel("Amplitude")
+    plt.title(f"Recovered Audio Waveform ({seconds:.2f} s Window)")
+    plt.grid(True)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=200, bbox_inches="tight")
+
+    plt.close()

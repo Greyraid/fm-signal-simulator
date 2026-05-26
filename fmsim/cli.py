@@ -14,7 +14,13 @@ from fmsim.impairments import (
     add_dc_offset,
     add_iq_imbalance
 )
-from fmsim.plots import plot_iq_time, plot_psd, plot_spectrogram
+from fmsim.plots import (
+    plot_iq_time, 
+    plot_psd, 
+    plot_spectrogram,
+    plot_psd_comparison,
+    plot_recovered_audio
+)
 
 import matplotlib.pyplot as plt
 
@@ -39,7 +45,8 @@ def main() -> None:
     parser.add_argument("--dc-q", type=float, default=0.0, help="DC offset added to Q channel")
     parser.add_argument("--iq-gain-imbalance-db", type=float, default=0.0, help="Q-channel gain imbalance in dB relative to I")
     parser.add_argument("--iq-phase-imbalance-deg", type=float, default=0.0, help="IQ phase imbalance in degrees")
-    parser.add_argument("--demod-output", nargs="?", const="recovered.wav", default=None, help="Save demodulated audio to a WAV file. Defaults to recovered.wav inside outpur-dir")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for repeatable noise/jammer generation")
+    parser.add_argument("--demod-output", nargs="?", const="recovered.wav", default=None, help="Save demodulated audio to a WAV file. Defaults to recovered.wav inside output-dir")
     parser.add_argument("--save-iq", action="store_true", help="Save simulated IQ data to the output directory")
     parser.add_argument("--save-config", action="store_true", help="Save run configuration metadata to the output directory")
     parser.add_argument("--save-plots", action="store_true", help="Save plots to the output directory")
@@ -61,8 +68,11 @@ def main() -> None:
         deviation_hz=deviation_hz
     )
 
+    # Clean copy of samples with no impairments
+    iq_clean = iq.copy()
+
     if args.snr_db is not None:
-        iq = add_awgn(iq, snr_db=args.snr_db)
+        iq = add_awgn(iq, snr_db=args.snr_db, seed=args.seed)
 
     if args.freq_offset is not None and args.freq_offset != 0:
         iq = add_frequency_offset(iq, fs_iq=fs, offset_hz=args.freq_offset)
@@ -92,6 +102,12 @@ def main() -> None:
             phase_imbalance_deg=args.iq_phase_imbalance_deg
         )
 
+    demod_audio = None
+
+    if args.demod_output is not None or args.save_plots or args.show_plots:
+        demod_audio = fm_demod(iq)
+        demod_audio = normalize_audio(demod_audio)
+
     if args.demod_output is not None:
         demod_output_path = Path(args.demod_output)
 
@@ -101,18 +117,14 @@ def main() -> None:
 
         demod_output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        demod_audio = fm_demod(iq)
-        demod_audio = normalize_audio(demod_audio)
-
         save_audio_wav(demod_output_path, demod_audio, fs)
-
-        #print(f"Saved demodulated audio: {demod_output_path}")
 
     metadata = {
         "mode" : args.mode,
         "fs_iq" : fs,
         "deviation_hz" : deviation_hz,
         "snr_db" : args.snr_db,
+        "seed" : args.seed,
         "freq_offset_hz" : args.freq_offset,
         "tone_jammer_hz" : args.tone_jammer_hz,
         "tone_jammer_power_db" : args.tone_jammer_power_db,
@@ -124,7 +136,7 @@ def main() -> None:
         "iq_phase_imbalance_deg" : args.iq_phase_imbalance_deg
     }
 
-    if args.save_iq or args.save_plots or args.save_config or args.demod_output:
+    if args.save_iq or args.save_plots or args.save_config or args.demod_output is not None:
         args.output_dir.mkdir(parents=True, exist_ok=True)
 
     if args.save_config:
@@ -133,13 +145,10 @@ def main() -> None:
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=4)
 
-        #print(f"Saved config file: {config_path}")
-
     if args.save_iq:
         args.output_dir.mkdir(parents=True, exist_ok=True)
         output_iq_path = args.output_dir / "fm_iq_output.npz"
         save_iq_npz(output_iq_path, iq, fs, metadata)
-        #print(f"Saved IQ File: {output_iq_path}")
 
     # Print run summary
     # ==================================
@@ -148,15 +157,16 @@ def main() -> None:
     print("----------------------------------")
     print(f"Input WAV:      {args.input_wav}")
     print(f"Mode:           {args.mode}")
-    print(f"sample Rate:    {fs} Hz")
+    print(f"Sample Rate:    {fs} Hz")
     print(f"Samples:        {len(iq)}")
     print(f"Duration:       {len(iq) / fs:.2f} seconds")
-    print(f"Deviation       {deviation_hz} Hz")
+    print(f"Deviation:      {deviation_hz} Hz")
+    print(f"Seed:           {args.seed if args.seed is not None else 'None'}")
 
-    # Print imparment details
+    # Print impairment details
     # ==================================
     print()
-    print("Imparments")
+    print("Impairments")
     print("-----------")
 
     if args.snr_db is not None:
@@ -170,7 +180,7 @@ def main() -> None:
         print("Frequency Offset:    None")
 
     if args.tone_jammer_hz is not None:
-        print(f"Tone Jammer:        {args.tone_jammer_hz} Hz at {args.tone_jammer_db} dB")
+        print(f"Tone Jammer:        {args.tone_jammer_hz} Hz at {args.tone_jammer_power_db} dB")
     else:
         print("Tone Jammer:         None")
 
@@ -188,19 +198,25 @@ def main() -> None:
         print(f"IQ Imbalance:       gain={args.iq_gain_imbalance_db} dB, phase={args.iq_phase_imbalance_deg} deg")
     else:
         print("IQ Imbalance:        None")
-
+ 
     if args.save_plots or args.show_plots:
         iq_time_path = args.output_dir / "iq_time.png"
         psd_path = args.output_dir / "psd.png"
         spectrogram_path = args.output_dir / "spectrogram.png"
+        psd_comparison_path = args.output_dir / "psd_comparison.png"
+        recovered_audio_path = args.output_dir / "recovered_audio.png"
 
         save_path_iq_time = iq_time_path if args.save_plots else None
         save_path_psd = psd_path if args.save_plots else None
         save_path_spectrogram = spectrogram_path if args.save_plots else None
+        save_path_psd_comparison = psd_comparison_path if args.save_plots else None
+        save_path_recovered_audio = recovered_audio_path if args.save_plots else None
 
         plot_iq_time(iq, fs, save_path=save_path_iq_time)
         plot_psd(iq, fs, save_path=save_path_psd)
         plot_spectrogram(iq, fs, save_path=save_path_spectrogram)
+        plot_psd_comparison(iq_clean=iq_clean, iq_impaired=iq, fs_iq=fs, save_path=save_path_psd_comparison)
+        plot_recovered_audio(audio=demod_audio, fs_audio=fs, save_path=save_path_recovered_audio)
 
         if args.show_plots:
             plt.show()
@@ -225,7 +241,7 @@ def main() -> None:
     if args.save_plots:
         print(f"Plots Folder:       {args.output_dir}")
 
-    if not args.save_iq and not args.save_config and args.demod_output is None:
+    if not args.save_iq and not args.save_config and args.demod_output is None and not args.save_plots:
         print("No files saved.")
 
 if __name__ == "__main__":
