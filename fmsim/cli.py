@@ -2,7 +2,8 @@ import argparse
 from pathlib import Path
 import json
 
-from fmsim.audio import load_audio
+from fmsim.audio import load_audio, save_audio_wav
+from fmsim.demod import fm_demod, normalize_audio
 from fmsim.fm import fm_modulate
 from fmsim.io import save_iq_npz
 from fmsim.impairments import (
@@ -38,6 +39,7 @@ def main() -> None:
     parser.add_argument("--dc-q", type=float, default=0.0, help="DC offset added to Q channel")
     parser.add_argument("--iq-gain-imbalance-db", type=float, default=0.0, help="Q-channel gain imbalance in dB relative to I")
     parser.add_argument("--iq-phase-imbalance-deg", type=float, default=0.0, help="IQ phase imbalance in degrees")
+    parser.add_argument("--demod-output", nargs="?", const="recovered.wav", default=None, help="Save demodulated audio to a WAV file. Defaults to recovered.wav inside outpur-dir")
     parser.add_argument("--save-iq", action="store_true", help="Save simulated IQ data to the output directory")
     parser.add_argument("--save-config", action="store_true", help="Save run configuration metadata to the output directory")
     parser.add_argument("--save-plots", action="store_true", help="Save plots to the output directory")
@@ -90,6 +92,22 @@ def main() -> None:
             phase_imbalance_deg=args.iq_phase_imbalance_deg
         )
 
+    if args.demod_output is not None:
+        demod_output_path = Path(args.demod_output)
+
+        # Save inside output-dir unless the user provided a folder/path
+        if demod_output_path.parent == Path("."):
+            demod_output_path = args.output_dir / demod_output_path
+
+        demod_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        demod_audio = fm_demod(iq)
+        demod_audio = normalize_audio(demod_audio)
+
+        save_audio_wav(demod_output_path, demod_audio, fs)
+
+        #print(f"Saved demodulated audio: {demod_output_path}")
+
     metadata = {
         "mode" : args.mode,
         "fs_iq" : fs,
@@ -106,7 +124,7 @@ def main() -> None:
         "iq_phase_imbalance_deg" : args.iq_phase_imbalance_deg
     }
 
-    if args.save_iq or args.save_plots or args.save_config:
+    if args.save_iq or args.save_plots or args.save_config or args.demod_output:
         args.output_dir.mkdir(parents=True, exist_ok=True)
 
     if args.save_config:
@@ -115,19 +133,61 @@ def main() -> None:
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=4)
 
-        print(f"Saved config file: {config_path}")
+        #print(f"Saved config file: {config_path}")
 
     if args.save_iq:
         args.output_dir.mkdir(parents=True, exist_ok=True)
         output_iq_path = args.output_dir / "fm_iq_output.npz"
         save_iq_npz(output_iq_path, iq, fs, metadata)
-        print(f"Saved IQ File: {output_iq_path}")
+        #print(f"Saved IQ File: {output_iq_path}")
 
     # Print run summary
-    print(f"Samples: {len(iq)}")
-    print(f"sample rate: {fs} Hz")
-    print(f"Mode: {args.mode}")
-    print(f"Deviation {deviation_hz} Hz")
+    # ==================================
+    print()
+    print("FM Signal Simulator Run Complete")
+    print("----------------------------------")
+    print(f"Input WAV:      {args.input_wav}")
+    print(f"Mode:           {args.mode}")
+    print(f"sample Rate:    {fs} Hz")
+    print(f"Samples:        {len(iq)}")
+    print(f"Duration:       {len(iq) / fs:.2f} seconds")
+    print(f"Deviation       {deviation_hz} Hz")
+
+    # Print imparment details
+    # ==================================
+    print()
+    print("Imparments")
+    print("-----------")
+
+    if args.snr_db is not None:
+        print(f"AWGN SNR:           {args.snr_db} dB")
+    else:
+        print("AWGN SNR:            None")
+
+    if args.freq_offset is not None and args.freq_offset != 0:
+        print(f"Frequency Offset:   {args.freq_offset} Hz")
+    else:
+        print("Frequency Offset:    None")
+
+    if args.tone_jammer_hz is not None:
+        print(f"Tone Jammer:        {args.tone_jammer_hz} Hz at {args.tone_jammer_db} dB")
+    else:
+        print("Tone Jammer:         None")
+
+    if args.dropout_start is not None and args.dropout_duration > 0:
+        print(f"Dropout:            starts at {args.dropout_start}s for {args.dropout_duration}s")
+    else:
+        print("Dropout:             None")
+
+    if args.dc_i != 0.0 or args.dc_q != 0.0:
+        print(f"DC Offset:          I={args.dc_i}, Q={args.dc_q}")
+    else:
+        print("DC Offset:           None")
+
+    if args.iq_gain_imbalance_db != 0.0 or args.iq_phase_imbalance_deg != 0.0:
+        print(f"IQ Imbalance:       gain={args.iq_gain_imbalance_db} dB, phase={args.iq_phase_imbalance_deg} deg")
+    else:
+        print("IQ Imbalance:        None")
 
     if args.save_plots or args.show_plots:
         iq_time_path = args.output_dir / "iq_time.png"
@@ -142,13 +202,31 @@ def main() -> None:
         plot_psd(iq, fs, save_path=save_path_psd)
         plot_spectrogram(iq, fs, save_path=save_path_spectrogram)
 
-        if args.save_plots:
-            print(f"Saved plots to: {args.output_dir}")
-
         if args.show_plots:
             plt.show()
         else:
             plt.close("all")
+
+    # Print output details
+    #==========================
+    print()
+    print("Outputs")
+    print("--------")
+
+    if args.save_iq:
+        print(f"IQ File:            {output_iq_path}")
+
+    if args.save_config:
+        print(f"Config File:        {config_path}")
+
+    if args.demod_output is not None:
+        print(f"Recovered Audio:    {demod_output_path}")
+
+    if args.save_plots:
+        print(f"Plots Folder:       {args.output_dir}")
+
+    if not args.save_iq and not args.save_config and args.demod_output is None:
+        print("No files saved.")
 
 if __name__ == "__main__":
     main()

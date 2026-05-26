@@ -26,3 +26,17 @@ def load_audio(path: str, target_fs: int) -> tuple[np.ndarray, int]:
         fs = target_fs
 
     return audio.astype(np.float32), fs
+
+def save_audio_wav(path: str, audio:np.array, fs: int) -> None:
+    '''
+    Save floating-point audio as a 16-bit WAV file.
+    '''
+    audio = audio.astype(np.float32)
+
+    max_val = np.max(np.abs(audio))
+    if max_val > 0:
+        audio = audio / max_val
+
+    audio_int16 = (audio * 32767).astype(np.int16)
+
+    wavfile.write(path, fs, audio_int16)

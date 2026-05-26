@@ -21,6 +21,10 @@ FM IQ modulation
     ↓
 Signal impairments
     ↓
+FM demodulation
+    ↓
+Optional recovered WAV audio export
+    ↓
 Optional IQ file export
     ↓
 Optional diagnostic plots
@@ -39,11 +43,15 @@ Optional config JSON export
 - IQ dropout
 - DC offset impairment
 - IQ gain and phase imbalance impairment
+- FM demodulation from IQ samples
+- Optional recovered audio WAV export
 - Optional IQ data saving
 - Optional diagnostic plot saving
 - Optional interactive plot display
 - Optional run configuration export to JSON
 - Organized output directory support
+- Recovered audio path routing through `--output-dir`
+- Cleaner terminal run summary
 
 ## Project Structure
 
@@ -52,6 +60,7 @@ fm-signal-simulator/
   fmsim/
     audio.py
     cli.py
+    demod.py
     fm.py
     impairments.py
     io.py
@@ -184,16 +193,40 @@ This creates:
 outputs/config_test/config.json
 ```
 
-### Full v0.2 Example
+### Save Recovered Audio
 
 ```bash
-py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20 --freq-offset 1000 --tone-jammer-hz 25000 --tone-jammer-power-db -15 --dropout-start 2 --dropout-duration 0.25 --dc-i 0.05 --dc-q 0.02 --iq-gain-imbalance-db 2 --iq-phase-imbalance-deg 5 --save-iq --save-plots --save-config --output-dir outputs/full_v02_test
+py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20 --demod-output --output-dir outputs/demod_test
+```
+
+This creates:
+
+```text
+outputs/demod_test/recovered.wav
+```
+
+Save Recovered audio with a custom filename:
+
+```bash
+py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20 --demod-output noisy_recovered.wav --output-dir outputs/demod_test
+```
+
+This creates:
+
+```text
+outputs/demod_test/noisy_recovered.wav
+```
+
+### Full Examples
+
+```bash
+py -m fmsim.cli examples/sample_audio.wav --mode wbfm --snr-db 20 --freq-offset 1000 --tone-jammer-hz 25000 --tone-jammer-power-db -15 --dropout-start 2 --dropout-duration 0.25 --dc-i 0.05 --dc-q 0.02 --iq-gain-imbalance-db 2 --iq-phase-imbalance-deg 5 --save-iq --save-plots --save-config --output-dir outputs/full_test
 ```
 
 Expected output:
 
 ```text
-outputs/full_v02_test/
+outputs/full_test/
   fm_iq_output.npz
   config.json
   iq_time.png
@@ -219,11 +252,13 @@ outputs/full_v02_test/
 | `--dc-q` | DC offset added to Q channel |
 | `--iq-gain-imbalance-db` | Q-channel gain imbalance in dB |
 | `--iq-phase-imbalance-deg` | IQ phase imbalance in degrees |
+| `--demod-output` | Save demodulated recovered audio as a `.wav` file |
 | `--output-dir` | Directory for saved output files |
 | `--save-iq` | Save IQ data as `.npz` |
 | `--save-plots` | Save diagnostic plots |
 | `--show-plots` | Display diagnostic plots |
 | `--save-config` | Save run configuration as JSON |
+
 
 ## Example Plots
 
@@ -243,6 +278,15 @@ outputs/readme_demo/config.json
 ```
 
 ## Version History
+
+### v0.3
+
+- Fixed metadata handling bug in `io.py`
+- Added `--demod-output`
+- Added FM demodulation from IQ samples
+- Added recovered audio WAV export
+- Added recovered audio output path routing
+- Improved terminal run summary
 
 ### v0.2
 

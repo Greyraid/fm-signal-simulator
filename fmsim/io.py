@@ -14,7 +14,7 @@ def save_iq_npz(
     path.parent.mkdir(parents=True, exist_ok=True)
 
     if metadata is None:
-        meta = {}
+        metadata = {}
 
     np.savez(
         path, 
