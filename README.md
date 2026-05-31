@@ -6,14 +6,20 @@ This project is designed as a learning and research tool for digital signal proc
 
 ## Current Version
 
-**v0.4**
+**v0.5**
 
-Version 0.4 adds repeatable AWGN noise generation with `--seed`, preserves clean IQ samples before impairments, and adds comparison plots for signal analysis. This update also adds a recovered audio snippet plot, fixes tone jammer power output in the terminal summary, and cleans up minor spelling/output issues.
+Version 0.5 introduces the first desktop graphical user interface for the FM Signal Simulator. The simulation pipeline has been refactored into a shared backend in `simulation.py`, allowing both the command-line interface and the new PySide6 GUI to run the same FM simulation process.
+
+The GUI provides controls for FM mode selection, signal impairments, random seed selection, output file generation, and output folder selection. This release is an important step toward the long-term goal of packaging the simulator as a standalone Windows application.
 
 ## Signal Chain
 
 ```text
 WAV audio
+    ↓
+GUI or command-line configuration
+    ↓
+Shared simulation backend
     ↓
 Normalized / resampled audio
     ↓
@@ -55,6 +61,11 @@ Optional config JSON export
 - Repeatable AWGN noise generation with `--seed`
 - Clean vs impaired IQ PSD comparison plot
 - Recovered audio snippet plot
+- PySide6 desktop graphical user interface
+- Shared simulation backend used by both the CLI and GUI
+- Input WAV file selection through the GUI
+- Output folder selection through the GUI
+- Scrollable GUI control layout
 
 ## Project Structure
 
@@ -65,9 +76,11 @@ fm-signal-simulator/
     cli.py
     demod.py
     fm.py
+    gui.py
     impairments.py
     io.py
     plots.py
+    simulation.py
   examples/
     sample_audio.wav
   outputs/
@@ -79,7 +92,7 @@ fm-signal-simulator/
 Install the required Python packages:
 
 ```bash
-pip install numpy scipy matplotlib
+py -m pip install numpy scipy matplotlib PySide6
 ```
 
 Or, if using a virtual environment on Windows:
@@ -87,22 +100,40 @@ Or, if using a virtual environment on Windows:
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-pip install numpy scipy matplotlib
+py -m pip install numpy scipy matplotlib PySide6
 ```
 
-## Basic Usage
+## GUI Usage
+
+Launch the desktop graphical user interface from the project root folder:
+
+```bash
+py -m fmsim.gui
+```
+
+The GUI allows the user to:
+
+- Select an input `.wav` audio file
+- Select an output folder
+- Choose WBFM or NBFM modulation
+- Configure AWGN, frequency offset, tone jammer, IQ dropout, DC offset, and IQ imbalance
+- Select a repeatable random seed
+- Save recovered audio, IQ samples, diagnostic plots  and simulation configuration data
+
+The GUI currently saves results to the selected output folder. Future versions are planned to add improved plot viewing and standalone Windows executable packaging.
+
+## Command-Line Usage
 
 Run the simulator from the project root folder:
 
 ```bash
-py -m fmsim.cli examples/sample_audio.wav --mode wbfm
-```
+py -m fmsim.cli examples/sample_audio.wav --mode wbfm```
 
-This runs a wideband FM simulation using the sample audio file.
+This runs a wideband FM simulation using the sameple audio file.
 
-By default, files are only saved when you use save options such as `--save-iq`, `--save-plots`, or `--save-config`.
+By default, files are only saved when using options such as `--save-iq`, `--save-plots`, `--save-config`, or `--demod-output`.
 
-## Example Commands
+## Example CLI Commands
 
 ### Wideband FM
 
@@ -298,6 +329,28 @@ outputs/readme_demo/config.json
 ```
 
 ## Version History
+
+### v0.5
+- Refactored the simulation pipeline into `simulation.py`
+- Maintained CLI functionality through the shared simulation backend
+- Added a PySide6 desktop GUI
+- Added input WAV file selection
+- Added output folder selection
+- Added GUI controls for:
+  - WBFM / NBFM mode
+  - AWGN
+  - Frequency offset
+  - Tone jammer frequency and power
+  - IQ dropout
+  - DC offset
+  - IQ gain and phase imbalance
+  - Random seed
+- Added GUI output options for:
+  - Saved IQ data
+  - Diagnostic plots
+  - Recovered audio
+  - Configuration metadata
+- Added a scrollable GUI layout
 
 ### v0.4
 - Added `--seed` for repeatable AWGN noise generation
