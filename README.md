@@ -6,11 +6,13 @@ This project is designed as a learning and research tool for digital signal proc
 
 ## Current Version
 
-**v0.5**
+**v0.6**
 
-Version 0.5 introduces the first desktop graphical user interface for the FM Signal Simulator. The simulation pipeline has been refactored into a shared backend in `simulation.py`, allowing both the command-line interface and the new PySide6 GUI to run the same FM simulation process.
+Version 0.6 focuses on GUI layout and usability polish. The desktop interface has been rebuilt around a more professional engineering-tool layout using PySide6 `QMainWindow`.
 
-The GUI provides controls for FM mode selection, signal impairments, random seed selection, output file generation, and output folder selection. This release is an important step toward the long-term goal of packaging the simulator as a standalone Windows application.
+The GUI now includes a top menu bar, toolbar, right-side simulation settings panel, central signal display workspace placeholder, status bar, Help menu information windows, output folder shortcuts, disabled controls for inactive impairments, no mouse-wheel value changes, and a threaded simulation runner so the interface remains responsive while simulations run.
+
+This release establishes the main application layout that will support integrated plot viewing in v0.7.
 
 ## Signal Chain
 
@@ -65,7 +67,16 @@ Optional config JSON export
 - Shared simulation backend used by both the CLI and GUI
 - Input WAV file selection through the GUI
 - Output folder selection through the GUI
-- Scrollable GUI control layout
+- GUI layout using `QMainWindow`
+- Top menu bar with File, View, Tools, and Help menus
+- Toolbar shortcuts for common actions
+- Dockable right-side Simulation Settings panel
+- Central Signal Display Workspace placeholder for future plot viewing
+- Bottom status bar with running/completed messages
+- Background-threaded simulation execution to keep the GUI responsive
+- Indeterminate progress bar while simulations are running
+- Open output folder option from the File menu, toolbar, and Simulation Control panel
+- Disabled value controls when their impairment checkbox is unchecked
 
 ## Project Structure
 
@@ -111,16 +122,28 @@ Launch the desktop graphical user interface from the project root folder:
 py -m fmsim.gui
 ```
 
+The GUI provides a desktop engineering-tool style layout with:
+
+* A top menu bar for File, View, Tools, and Help actions
+* A toolbar for quick access to common commands
+* A right-side Simulation Settings panel
+* A central Signal Display Workspace reserved for future integrated plots
+* A bottom status bar for run status and progress indication
+
 The GUI allows the user to:
 
-- Select an input `.wav` audio file
-- Select an output folder
-- Choose WBFM or NBFM modulation
-- Configure AWGN, frequency offset, tone jammer, IQ dropout, DC offset, and IQ imbalance
-- Select a repeatable random seed
-- Save recovered audio, IQ samples, diagnostic plots  and simulation configuration data
+* Select an input .wav audio file
+* Select an output folder
+* Open the selected output folder directly from the GUI
+* Choose WBFM or NBFM modulation
+* Configure AWGN, frequency offset, tone jammer, IQ dropout, DC offset, and IQ imbalance
+* Select a repeatable random seed
+* Save recovered audio, IQ samples, diagnostic plots, and simulation configuration data
+* View basic help and impairment information from the Help menu
 
-The GUI currently saves results to the selected output folder. Future versions are planned to add improved plot viewing and standalone Windows executable packaging.
+Inactive impairment value controls are disabled until their checkbox is selected. Simulation runs are executed in a background thread so the interface remains responsive while the simulation is running.
+
+The GUI currently saves results to the selected output folder. Integrated plot viewing inside the central workspace is planned for v0.7.
 
 ## Command-Line Usage
 
@@ -129,7 +152,7 @@ Run the simulator from the project root folder:
 ```bash
 py -m fmsim.cli examples/sample_audio.wav --mode wbfm```
 
-This runs a wideband FM simulation using the sameple audio file.
+This runs a wideband FM simulation using the sample audio file.
 
 By default, files are only saved when using options such as `--save-iq`, `--save-plots`, `--save-config`, or `--demod-output`.
 
@@ -329,6 +352,22 @@ outputs/readme_demo/config.json
 ```
 
 ## Version History
+
+### v0.6
+- Rebuilt the GUI around a `QMainWindow` application layout
+- Added top menu bar with File, View, Tools, and Help menus
+- Added toolbar shortcuts for opening WAV files, selecting output folders, opening the output folder, and running simulations
+- Added dockable right-side Simulation Settings panel
+- Added central Signal Display Workspace placeholder for future v0.7 plot viewing
+- Added bottom status bar with running and completed status messages
+- Added indeterminate progress bar while simulations are running
+- Moved simulation execution into a background thread to prevent the GUI from freezing
+- Added Open Output Folder option to the File menu, toolbar, and Simulation Control panel
+- Added Help menu popups for usage instructions, impairment descriptions, and program information
+- Disabled impairment value controls when their corresponding checkbox is unchecked
+- Disabled mouse-wheel value changes for spin boxes and combo boxes
+- Improved spacing between impairment groups
+- Updated Matplotlib plotting backend for GUI-safe plot saving
 
 ### v0.5
 - Refactored the simulation pipeline into `simulation.py`
