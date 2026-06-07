@@ -1,3 +1,4 @@
+from pathlib import Path
 import matplotlib
 
 matplotlib.use("Agg")
@@ -6,8 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 
-def plot_iq_time(iq: np.ndarray, fs_iq:int, seconds: float = 0.005, save_path: str | None = None) -> None:
-    num_samples = int(seconds * fs_iq)
+def plot_iq_time(iq: np.ndarray, fs_iq:int, seconds: float = 0.005, save_path: str | Path | None = None) -> None:
+    
+    num_samples = min(len(iq), int(seconds * fs_iq))
     t = np.arange(num_samples) / fs_iq
 
     plt.figure()
@@ -24,7 +26,37 @@ def plot_iq_time(iq: np.ndarray, fs_iq:int, seconds: float = 0.005, save_path: s
 
     plt.close()
 
-def plot_psd(iq: np.ndarray, fs_iq: int, save_path: str | None = None) -> None:
+def plot_iq_constellation(iq: np.ndarray, save_path: Path | None = None) -> None:
+    """Plot IQ constellation."""
+
+    plt.figure()
+
+    max_points = min(len(iq), 20_000)
+    step = max(1, len(iq) // max_points)
+    iq_plot = iq[::step][:max_points]
+
+    plt.scatter(
+        np.real(iq_plot),
+        np.imag(iq_plot),
+        s=1,
+        alpha=0.35,
+    )
+
+    plt.axhline(0, linewidth=0.8)
+    plt.axvline(0, linewidth=0.8)
+
+    plt.title("IQ Constellation")
+    plt.xlabel("In-phase (I)")
+    plt.ylabel("Quadrature (Q)")
+    plt.grid(True)
+    plt.axis("equal")
+
+    if save_path is not None:
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+    
+    plt.close()
+
+def plot_psd(iq: np.ndarray, fs_iq: int, save_path: str | Path | None = None) -> None:
     freqs,psd = signal.welch(
         iq,
         fs=fs_iq,
@@ -48,7 +80,7 @@ def plot_psd(iq: np.ndarray, fs_iq: int, save_path: str | None = None) -> None:
 
     plt.close()
 
-def plot_psd_comparison(iq_clean : np.ndarray, iq_impaired: np.ndarray, fs_iq: int, save_path: str) -> None:
+def plot_psd_comparison(iq_clean : np.ndarray, iq_impaired: np.ndarray, fs_iq: int, save_path: str | Path | None = None) -> None:
     """
     Plot clean and impaired IQ power spectral density on the same graph.
     """
@@ -78,7 +110,7 @@ def plot_psd_comparison(iq_clean : np.ndarray, iq_impaired: np.ndarray, fs_iq: i
     plt.plot(f_clean / 1000, 10 * np.log10(psd_clean + 1e-12), label="Clean IQ")
     plt.plot(f_impaired / 1000, 10 * np.log10(psd_impaired + 1e-12), label="Impaired IQ")
 
-    plt.title("PSD Comparison: CLean vs Impaired IQ")
+    plt.title("PSD Comparison: Clean vs Impaired IQ")
     plt.xlabel("Frequency Offset (kHz)")
     plt.ylabel("Power Spectral Density (dB/Hz)")
     plt.grid(True)
@@ -90,7 +122,7 @@ def plot_psd_comparison(iq_clean : np.ndarray, iq_impaired: np.ndarray, fs_iq: i
 
     plt.close()
 
-def plot_spectrogram(iq: np.ndarray, fs_iq: int, save_path: str | None = None) -> None:
+def plot_spectrogram(iq: np.ndarray, fs_iq: int, save_path: str| Path | None = None) -> None:
     freqs, times, Sxx = signal.spectrogram(
         iq,
         fs=fs_iq,
@@ -121,10 +153,10 @@ def plot_recovered_audio(
         fs_audio: int,
         start_time_s: float = 0.0,
         seconds: float = 0.25,
-        save_path: str | None = None
+        save_path: str | Path | None = None
 ) -> None:
     """
-    Plote a short section of recovered demodulated audio in the time domain.        
+    Plot a short section of recovered demodulated audio in the time domain.        
     """
 
     start_idx = int(start_time_s * fs_audio)

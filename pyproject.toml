@@ -1,7 +1,7 @@
 [project]
 name = "fm-signal-simulator"
-version = "0.5.0"
-description = "A Python FM signal simulator that converts WAV audio into complex IQ samples with configurable RF impairments."
+version = "0.7.0"
+description = "A Python FM signal simulator with configurable RF impairments, CLI support, and an integrated PySide6 GUI for IQ and audio visualization."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [

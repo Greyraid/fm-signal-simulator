@@ -6,13 +6,15 @@ This project is designed as a learning and research tool for digital signal proc
 
 ## Current Version
 
-**v0.6**
+**v0.7**
 
-Version 0.6 focuses on GUI layout and usability polish. The desktop interface has been rebuilt around a more professional engineering-tool layout using PySide6 `QMainWindow`.
+Version 0.7 focuses on integrated GUI plot viewing and improved signal analysis tools.
 
-The GUI now includes a top menu bar, toolbar, right-side simulation settings panel, central signal display workspace placeholder, status bar, Help menu information windows, output folder shortcuts, disabled controls for inactive impairments, no mouse-wheel value changes, and a threaded simulation runner so the interface remains responsive while simulations run.
+The GUI now displays simulation results directly inside the main application window using a tabbed plot workspace. Integrated plots include IQ time-domain, IQ constellation, clean vs impaired PSD comparison, spectrogram, and recovered audio waveform views.
 
-This release establishes the main application layout that will support integrated plot viewing in v0.7.
+This release also adds scrollable time-window controls for the IQ time-domain and recovered audio plots, allowing the user to inspect different parts of the signal without plotting the entire waveform at once. A plot appearance menu was also added so the user can change the plot background color from the Tools menu.
+
+The GUI has also been refactored into smaller files for better readability and maintainability.
 
 ## Signal Chain
 
@@ -44,54 +46,48 @@ Optional config JSON export
 
 ## Features
 
-- Narrowband FM and wideband FM modulation
-- Configurable IQ sample rate
-- Configurable FM deviation
-- Additive white Gaussian noise
-- Frequency offset
-- Tone jammer
-- IQ dropout
-- DC offset impairment
-- IQ gain and phase imbalance impairment
-- FM demodulation from IQ samples
-- Optional recovered audio WAV export
-- Optional IQ data saving
-- Optional diagnostic plot saving
-- Optional interactive plot display
-- Optional run configuration export to JSON
-- Organized output directory support
-- Repeatable AWGN noise generation with `--seed`
-- Clean vs impaired IQ PSD comparison plot
-- Recovered audio snippet plot
-- PySide6 desktop graphical user interface
-- Shared simulation backend used by both the CLI and GUI
-- Input WAV file selection through the GUI
-- Output folder selection through the GUI
-- GUI layout using `QMainWindow`
-- Top menu bar with File, View, Tools, and Help menus
-- Toolbar shortcuts for common actions
-- Dockable right-side Simulation Settings panel
-- Central Signal Display Workspace placeholder for future plot viewing
-- Bottom status bar with running/completed messages
-- Background-threaded simulation execution to keep the GUI responsive
-- Indeterminate progress bar while simulations are running
-- Open output folder option from the File menu, toolbar, and Simulation Control panel
-- Disabled value controls when their impairment checkbox is unchecked
+* Narrowband FM and wideband FM modulation
+* Configurable IQ sample rate and FM deviation
+* Shared simulation backend for both CLI and GUI use
+* Signal impairments including AWGN, frequency offset, tone jammer, IQ dropout, DC offset, and IQ gain/phase imbalance
+* Repeatable AWGN noise generation with `--seed`
+* FM demodulation with optional recovered WAV audio export
+* Optional IQ data, diagnostic plot, and configuration JSON saving
+* Organized output directory support
+* PySide6 desktop GUI using a `QMainWindow` engineering-tool layout
+* Top menu bar, toolbar shortcuts, dockable Simulation Settings panel, and status bar
+* Background-threaded simulation execution to keep the GUI responsive
+* Integrated tabbed plot workspace in the GUI
+* GUI plot tabs for IQ Time, IQ Constellation, PSD Comparison, Spectrogram, and Recovered Audio
+* Scrollable time-window controls for IQ Time and Recovered Audio plots
+* Adjustable plot window lengths from 10 ms to 1 s
+* Plot appearance dialog for changing plot background color
+* Disabled value controls when their impairment checkbox is unchecked
+* Open output folder option from the File menu, toolbar, and Simulation Control panel
 
 ## Project Structure
 
 ```text
 fm-signal-simulator/
+  gui.py
   fmsim/
+    __init__.py
     audio.py
     cli.py
     demod.py
     fm.py
-    gui.py
     impairments.py
     io.py
     plots.py
     simulation.py
+    gui/
+      __init__.py
+      appearance_dialog.py
+      main_window.py
+      plot_panel.py
+      settings_panel.py
+      widgets.py
+      worker.py
   examples/
     sample_audio.wav
   outputs/
@@ -119,7 +115,7 @@ py -m pip install numpy scipy matplotlib PySide6
 Launch the desktop graphical user interface from the project root folder:
 
 ```bash
-py -m fmsim.gui
+py gui.py
 ```
 
 The GUI provides a desktop engineering-tool style layout with:
@@ -127,30 +123,41 @@ The GUI provides a desktop engineering-tool style layout with:
 * A top menu bar for File, View, Tools, and Help actions
 * A toolbar for quick access to common commands
 * A right-side Simulation Settings panel
-* A central Signal Display Workspace reserved for future integrated plots
+* A central tabbed plot workspace for integrated signal visualization
 * A bottom status bar for run status and progress indication
 
 The GUI allows the user to:
 
-* Select an input .wav audio file
+* Select an input `.wav` audio file
 * Select an output folder
 * Open the selected output folder directly from the GUI
 * Choose WBFM or NBFM modulation
 * Configure AWGN, frequency offset, tone jammer, IQ dropout, DC offset, and IQ imbalance
 * Select a repeatable random seed
 * Save recovered audio, IQ samples, diagnostic plots, and simulation configuration data
+* View integrated plots directly inside the GUI
+* Adjust the visible time window for IQ time-domain and recovered audio plots
+* Change the plot background color from the Tools menu
 * View basic help and impairment information from the Help menu
 
-Inactive impairment value controls are disabled until their checkbox is selected. Simulation runs are executed in a background thread so the interface remains responsive while the simulation is running.
+Integrated GUI plot tabs include:
+* IQ Time
+* IQ Constellation
+* PSD Comparison
+* Spectrogram
+* Recovered Audio
 
-The GUI currently saves results to the selected output folder. Integrated plot viewing inside the central workspace is planned for v0.7.
+The IQ Time and Recovered Audio plots include a time slider and window length selector so different parts of the signal can be inspected without plotting the entire waveform at once.
+
+Inactive impairment value controls are disabled until their checkbox is selected. Simulation runs are executed in a background thread so the interface remains responsive while the simulation is running.
 
 ## Command-Line Usage
 
 Run the simulator from the project root folder:
 
 ```bash
-py -m fmsim.cli examples/sample_audio.wav --mode wbfm```
+py -m fmsim.cli examples/sample_audio.wav --mode wbfm
+```
 
 This runs a wideband FM simulation using the sample audio file.
 
@@ -236,6 +243,7 @@ This creates:
 
 ```text
 outputs/plot_test/iq_time.png
+outputs/plot_test/iq_constellation.png
 outputs/plot_test/psd.png
 outputs/plot_test/psd_comparison.png
 outputs/plot_test/spectrogram.png
@@ -297,6 +305,7 @@ outputs/full_test/
   fm_iq_output.npz
   config.json
   iq_time.png
+  iq_constellation.png
   psd.png
   psd_comparison.png
   spectrogram.png
@@ -343,6 +352,7 @@ After running that command, the following files should be created:
 
 ```text
 outputs/readme_demo/iq_time.png
+outputs/readme_demo/iq_constellation.png
 outputs/readme_demo/psd.png
 outputs/readme_demo/psd_comparison.png
 outputs/readme_demo/spectrogram.png
@@ -352,6 +362,28 @@ outputs/readme_demo/config.json
 ```
 
 ## Version History
+
+### v0.7
+- Added integrated GUI plot viewing inside the main application window
+- Added tabbed plot workspace
+- Added IQ Time plot tab
+- Added IQ Constellation plot tab
+- Added clean vs impaired PSD Comparison plot tab
+- Added Spectrogram plot tab
+- Added Recovered Audio plot tab
+- Added scrollable time-window controls for IQ Time and Recovered Audio plots
+- Added selectable plot window lengths: 10 ms, 50 ms, 100 ms, 250 ms, 500 ms, and 1 s
+- Added Tools menu Plot Appearance dialog
+- Added configurable plot background colors
+- Added IQ constellation plot saving as `iq_constellation.png`
+- Refactored GUI code into smaller modules:
+  - `main_window.py`
+  - `settings_panel.py`
+  - `plot_panel.py`
+  - `appearance_dialog.py`
+  - `widgets.py`
+  - `worker.py`
+- Updated GUI to use shared simulation results directly for embedded plotting
 
 ### v0.6
 - Rebuilt the GUI around a `QMainWindow` application layout

@@ -1,11 +1,38 @@
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual environments
 .venv/
 venv/
+env/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Outputs from simulator runs
 outputs/
 *.npz
 *.wav
-.DS_Store
+*.png
+
+# Local editor/project settings
 .vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Internal planning files
 change_log_internal.txt
 roadmap_internal.txt
+
+# Local test/temp files
+run_test.py
+test_*.py
+temp/
+tmp/

@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from fmsim.audio import load_audio, save_audio_wav
 from fmsim.demod import fm_demod, normalize_audio
@@ -19,6 +20,7 @@ from fmsim.impairments import (
 
 from fmsim.plots import (
     plot_iq_time,
+    plot_iq_constellation,
     plot_psd,
     plot_spectrogram,
     plot_psd_comparison,
@@ -64,6 +66,11 @@ class SimulationResult:
     duration_s: float
     deviation_hz: float
     metadata: dict
+
+    iq_clean: np.ndarray
+    iq_impaired: np.ndarray
+    recovered_audio: np.ndarray | None = None
+    fs_audio: int | None = None
 
     iq_path: Path | None = None
     config_path: Path | None = None
@@ -148,11 +155,8 @@ def run_simulation(config: SimulationConfig) -> SimulationResult:
     if should_make_output_dir:
         config.output_dir.mkdir(parents=True, exist_ok=True)
 
-    demod_audio = None
-
-    if config.demod_output is not None or config.save_plots or config.show_plots:
-        demod_audio = fm_demod(iq)
-        demod_audio = normalize_audio(demod_audio)
+    demod_audio = fm_demod(iq)
+    demod_audio = normalize_audio(demod_audio)
     
     demod_output_path = None
 
@@ -183,6 +187,7 @@ def run_simulation(config: SimulationConfig) -> SimulationResult:
 
     if config.save_plots or config.show_plots:
         iq_time_path = config.output_dir / "iq_time.png"
+        iq_constellation_path = config.output_dir / "iq_constellation.png"
         psd_path = config.output_dir / "psd.png"
         spectrogram_path = config.output_dir / "spectrogram.png"
         psd_comparison_path = config.output_dir / "psd_comparison.png"
@@ -192,6 +197,11 @@ def run_simulation(config: SimulationConfig) -> SimulationResult:
             iq,
             fs,
             save_path=iq_time_path if config.save_plots else None
+        )
+
+        plot_iq_constellation(
+            iq,
+            save_path=iq_constellation_path if config.save_plots else None
         )
 
         plot_psd(
@@ -221,6 +231,7 @@ def run_simulation(config: SimulationConfig) -> SimulationResult:
             plot_paths.extend(
                 [
                     iq_time_path,
+                    iq_constellation_path,
                     psd_path,
                     spectrogram_path,
                     psd_comparison_path,
@@ -242,6 +253,10 @@ def run_simulation(config: SimulationConfig) -> SimulationResult:
         duration_s=len(iq) / fs,
         deviation_hz=deviation_hz,
         metadata=metadata,
+        iq_clean=iq_clean,
+        iq_impaired=iq,
+        recovered_audio=demod_audio,
+        fs_audio=fs,
         iq_path=iq_path,
         config_path=config_path,
         demod_audio_path=demod_output_path,
