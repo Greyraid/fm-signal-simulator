@@ -6,8 +6,6 @@ This project is designed as a learning and research tool for digital signal proc
 
 ## Current Version
 
-## Current Version
-
 **v0.9**
 
 Version 0.9 prepares FM Signal Simulator for its first Windows executable release.
@@ -280,7 +278,7 @@ Inactive impairment value controls are disabled until their checkbox is selected
 
 ### IQ Constellation with Tone Jammer
 
-![Tone jammer IQ constellation](README-assets/iq-tone_jammer_graph.png)
+![Tone jammer IQ constellation](README-assets/iq_tone_jammer_graph.png)
 
 ### Audio Playback
 
