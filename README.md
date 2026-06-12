@@ -6,15 +6,29 @@ This project is designed as a learning and research tool for digital signal proc
 
 ## Current Version
 
-**v0.8**
+## Current Version
 
-Version 0.8 adds integrated audio playback and improved recovered-audio handling to the PySide6 GUI.
+**v0.9**
 
-The GUI now includes a dedicated Audio Playback tab for comparing the original input WAV with the recovered audio produced after FM modulation, signal impairments, and demodulation. Each audio player includes independent play, stop, reset, seek, time-display, and volume controls.
+Version 0.9 prepares FM Signal Simulator for its first Windows executable release.
 
-Recovered audio can be played directly after every simulation, even when the Save Recovered Audio option is unchecked. When saving is disabled, the GUI creates a temporary playback copy without exporting a permanent WAV file to the selected output folder.
+This release adds application branding, executable packaging support, improved file handling, input validation, simulation-setting validation, and several GUI and audio-playback fixes.
 
-This release also improves the plot workspace by showing time-window controls only on the IQ Time and Recovered Audio plot tabs. Impairment information buttons were added to the settings panel, and all optional export checkboxes are now unchecked by default.
+The application now includes a custom program icon and startup splash screen. Version information is centralized so the main window, About dialog, splash screen, Python package metadata, and executable build remain consistent.
+
+The default output directory is now created inside the user's Documents folder:
+
+```text
+Documents/FM Signal Simulator/outputs
+```
+
+Input WAV files are validated before a simulation begins. The application detects missing, unreadable, unsupported, or empty WAV files and displays a clear error message without crashing.
+
+IQ dropout settings are validated against the duration of the selected audio file. Invalid dropout start times or durations are rejected before the simulation begins.
+
+Recovered-audio playback now uses unique temporary files so repeated simulations update correctly. Previous temporary playback files are removed when replaced, when the application closes, and when the application starts after an interrupted session.
+
+Version 0.9 also adds a PyInstaller build configuration for producing a Windows desktop application with the program icon, splash image, PySide6 GUI, Matplotlib plots, and multimedia playback support.
 
 ## Signal Chain
 
@@ -47,40 +61,26 @@ Optional config JSON export
 ## Features
 
 * Narrowband FM and wideband FM modulation
-* Configurable IQ sample rate and FM deviation
-* Shared simulation backend for both CLI and GUI use
-* Signal impairments including AWGN, frequency offset, tone jammer, IQ dropout, DC offset, and IQ gain/phase imbalance
-* Repeatable AWGN noise generation with `--seed`
-* FM demodulation with optional recovered WAV audio export
-* Optional IQ data, diagnostic plot, and configuration JSON saving
-* Organized output directory support
-* PySide6 desktop GUI using a `QMainWindow` engineering-tool layout
-* Top menu bar, toolbar shortcuts, dockable Simulation Settings panel, and status bar
-* Background-threaded simulation execution to keep the GUI responsive
-* Integrated tabbed plot workspace in the GUI
-* GUI plot tabs for IQ Time, IQ Constellation, PSD Comparison, Spectrogram, and Recovered Audio
-* Scrollable time-window controls for IQ Time and Recovered Audio plots
-* Adjustable plot window lengths from 10 ms to 1 s
-* Plot appearance dialog for changing plot background color
-* Disabled value controls when their impairment checkbox is unchecked
-* Open output folder option from the File menu, toolbar, and Simulation Control panel
-* Dedicated Audio Playback tab in the GUI
-* Independent playback for original input audio and recovered output audio
-* Play, stop, reset, and draggable seek controls
-* Playback position and duration displays
-* Independent volume controls for original and recovered audio
-* Temporary recovered-audio playback when WAV export is disabled
-* Playback-compatible temporary WAV conversion
-* Playback controls disabled until audio is available
-* Impairment information buttons in the Simulation Settings panel
-* Save IQ, Save Plots, and Save Recovered Audio options unchecked by default
-
+* Configurable IQ sample rate, FM deviation, and repeatable random seed
+* RF impairments including AWGN, frequency offset, tone jammer, IQ dropout, DC offset, and IQ gain/phase imbalance
+* FM demodulation with recovered audio playback and optional WAV export
+* Optional IQ, plot, configuration, and recovered-audio saving
+* Shared simulation backend for CLI and PySide6 GUI use
+* Integrated GUI plots for IQ Time, IQ Constellation, PSD Comparison, Spectrogram, and Recovered Audio
+* Adjustable time windows and plot appearance settings
+* Original and recovered audio playback with play, stop, reset, seek, time, and volume controls
+* Background-threaded simulations to keep the GUI responsive
+* Dockable settings panel, toolbar, menus, status bar, and impairment help
+* Input WAV, output-folder, and dropout-setting validation
+* Automatic temporary audio-file cleanup and reliable repeated-run playback
+* Default output folder in the user's Documents directory
+* Custom application icon and startup splash screen
+* Windows executable packaging support with a reusable PyInstaller `.spec` file
 
 ## Project Structure
 
 ```text
 fm-signal-simulator/
-  gui.py
   fmsim/
     __init__.py
     audio.py
@@ -91,7 +91,9 @@ fm-signal-simulator/
     io.py
     playback.py
     plots.py
+    resources.py
     simulation.py
+    version.py
     gui/
       __init__.py
       appearance_dialog.py
@@ -101,28 +103,110 @@ fm-signal-simulator/
       settings_panel.py
       widgets.py
       worker.py
+    resources/
+      icons/
+        fmsim.ico
+      images/
+        splash.png
   examples/
     sample_audio.wav
   outputs/
+  FM Signal Simulator.spec
   README.md
+  requirements.txt
   pyproject.toml
 ```
 
 ## Installation
 
-Install the required Python packages:
+### Install from the project metadata
 
-```bash
-py -m pip install numpy scipy matplotlib PySide6
-```
-
-Or, if using a virtual environment on Windows:
+Create and activate a virtual environment:
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-py -m pip install numpy scipy matplotlib PySide6
 ```
+
+Install the project:
+
+```bash
+py -m pip install -e .
+```
+
+This installs:
+
+* NumPy
+* SciPy
+* Matplotlib
+* PySide6
+
+To also install PyInstaller for executable development:
+
+```bash
+py -m pip install -e ".[dev]"
+```
+
+### Install from requirements.txt
+
+```bash
+py -m pip install -r requirements.txt
+```
+
+### Launch the GUI
+
+```bash
+py -m fmsim.gui.main_window
+```
+
+When installed through `pyproject.toml`, the GUI can also be launched with:
+
+```bash
+fmsim-gui
+```
+
+The command-line interface can be launched with:
+
+```bash
+fmsim examples/sample_audio.wav --mode wbfm
+```
+
+## Windows Executable
+
+Version 0.9 includes preparation for packaging FM Signal Simulator as a Windows desktop application.
+
+Build the application from the project root with:
+
+```bash
+py -m PyInstaller --noconfirm --clean "FM Signal Simulator.spec"
+```
+
+The folder-based executable will be created at:
+
+```text
+dist/FM Signal Simulator/FM Signal Simulator.exe
+```
+
+The packaged application includes:
+
+* FM Signal Simulator executable
+* Application icon
+* Startup splash screen
+* PySide6 GUI components
+* Qt multimedia playback support
+* Matplotlib plotting support
+* NumPy and SciPy simulation dependencies
+
+The entire generated `dist/FM Signal Simulator` folder must be kept together when using the folder-based build.
+
+Generated build folders are excluded from Git:
+
+```text
+build/
+dist/
+```
+
+The PyInstaller `.spec` file is tracked because it defines the repeatable executable build configuration.
 
 ## GUI Usage
 
@@ -168,6 +252,18 @@ Integrated GUI plot tabs include:
 * Spectrogram
 * Recovered Audio
 
+When the application starts, a branded splash screen is shown while the main window is created. The program icon is used in the title bar, Windows taskbar, dialogs, and packaged executable.
+
+By default, simulation files are written to:
+
+```text
+Documents/FM Signal Simulator/outputs
+```
+
+A different output directory can be selected from the Simulation Settings panel, toolbar, or File menu.
+
+The GUI validates the selected WAV file and output folder before starting a simulation. Invalid or missing files, unreadable audio, empty WAV files, unwritable output folders, and invalid dropout timing produce a warning instead of crashing the application.
+
 The Audio Playback tab contains separate players for the original input WAV and recovered output audio. Each player includes play, stop, reset, seek, elapsed-time, duration, and volume controls. Original playback becomes available after selecting an input WAV, while recovered playback becomes available after a simulation completes.
 
 The Save Recovered Audio option controls permanent WAV export only. Recovered audio remains available for playback when this option is unchecked by using a temporary playback file.
@@ -175,6 +271,24 @@ The Save Recovered Audio option controls permanent WAV export only. Recovered au
 The IQ Time and Recovered Audio plots include a time slider and window length selector so different parts of the signal can be inspected without plotting the entire waveform at once.
 
 Inactive impairment value controls are disabled until their checkbox is selected. Simulation runs are executed in a background thread so the interface remains responsive while the simulation is running.
+
+## Screenshots
+
+### Main Application Window
+
+![FM Signal Simulator main window](README-assets/main_window.png)
+
+### IQ Constellation with Tone Jammer
+
+![Tone jammer IQ constellation](README-assets/iq-tone_jammer_graph.png)
+
+### Audio Playback
+
+![Original and recovered audio playback](README-assets/audio_playback.png)
+
+### Startup Splash Screen
+
+![FM Signal Simulator splash screen](README-assets/splash_screen.png)
 
 ## Command-Line Usage
 
@@ -387,6 +501,40 @@ outputs/readme_demo/config.json
 ```
 
 ## Version History
+
+### v0.9
+
+- Updated the project version to `0.9.0`
+- Added a custom application icon
+- Added a startup splash screen
+- Added centralized application name, description, and version constants
+- Added packaged-resource path handling for development and executable builds
+- Added PyInstaller Windows executable support
+- Added a reusable `FM Signal Simulator.spec` build configuration
+- Bundled application icons and splash images with packaged builds
+- Added a GUI launcher through `pyproject.toml`
+- Added optional PyInstaller development dependencies
+- Changed the default output location to the user's Documents folder
+- Added automatic default output-folder creation
+- Added output-folder write-access validation
+- Added input WAV existence and extension validation
+- Added unreadable and empty WAV-file detection
+- Added sample-rate validation
+- Added audio-duration tracking
+- Added audio-duration-aware IQ dropout limits
+- Added validation for invalid dropout start times
+- Added validation for invalid dropout durations
+- Added clear GUI warning messages for invalid input and settings
+- Improved disabling of controls while a simulation is running
+- Fixed recovered-audio playback not updating after repeated simulations
+- Added unique temporary recovered-audio filenames
+- Added cleanup of replaced temporary playback files
+- Added cleanup of temporary playback files when the application closes
+- Added cleanup of stale temporary playback files at startup
+- Improved output-folder and temporary-file handling for packaged builds
+- Tested clean WBFM and NBFM simulation runs
+- Tested AWGN, tone jammer, IQ dropout, DC offset, frequency offset, and IQ imbalance behavior
+- Tested repeated simulations, plotting, saving, and audio playback in the packaged application
 
 ### v0.8
 - Added a dedicated Audio Playback tab to the GUI

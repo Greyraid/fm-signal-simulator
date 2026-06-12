@@ -1,9 +1,10 @@
 from pathlib import Path
 import os
 import sys
+import tempfile
 
-from PySide6.QtCore import Qt, QThread
-from PySide6.QtGui import QAction
+from PySide6.QtCore import Qt, QThread, QStandardPaths
+from PySide6.QtGui import QAction, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -13,23 +14,41 @@ from PySide6.QtWidgets import (
     QToolBar,
     QMessageBox,
     QProgressBar,
-    QTabWidget
+    QTabWidget,
+    QSplashScreen,
 )
+
+from scipy.io import wavfile
 
 from fmsim.gui.settings_panel import SettingsPanel
 from fmsim.gui.worker import SimulationWorker
 from fmsim.gui.plot_panel import PlotPanel
 from fmsim.gui.appearance_dialog import PlotAppearanceDialog
 from fmsim.gui.audio_playback_panel import AudioPlaybackPanel
+from fmsim.version import WINDOW_TITLE, APP_NAME, APP_DESCRIPTION, APP_VERSION
+from fmsim.resources import resource_path
 
 class FMSimGui(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
 
-        self.input_wav: Path | None = None
-        self.output_dir: Path = Path("outputs")
+        self.remove_stale_temp_files()
+        
 
-        self.setWindowTitle("FM Signal Simulator")
+        self.setWindowIcon(
+            QIcon(str(resource_path("fmsim/resources/icons/fmsim.ico")))
+        )
+
+        self.input_wav: Path | None = None
+        self.input_duration_s: float | None = None
+        self.output_dir = self.get_default_output_dir()
+        
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            self.output_dir = Path.home() / "FM Signal Simulator" / "outputs"
+
+        self.setWindowTitle(WINDOW_TITLE)
         self.resize(1200, 600)
 
         self.create_progress_bar()
@@ -38,6 +57,8 @@ class FMSimGui(QMainWindow):
         self.create_toolbar()
         self.create_workspace()
         self.create_settings_dock()
+
+        self.settings_panel.set_output_dir(self.output_dir)
 
         self.statusBar().addPermanentWidget(self.progress_bar)
         self.progress_bar.hide()
@@ -173,6 +194,8 @@ class FMSimGui(QMainWindow):
         self.view_menu.addAction(self.settings_dock.toggleViewAction())
 
     def select_input_wav(self) -> None:
+        """Select and load an input WAV file."""
+
         file_name, _ = QFileDialog.getOpenFileName(
             self,
             "Select Input WAV",
@@ -180,28 +203,99 @@ class FMSimGui(QMainWindow):
             "WAV Files (*.wav)",
         )
 
-        if file_name:
-            self.input_wav = Path(file_name)
-            self.settings_panel.set_input_wav(self.input_wav)
-            self.audio_playback_panel.load_original_audio(self.input_wav)
+        if not file_name:
+            return
+
+        selected_path = Path(file_name)
+
+        try:
+            sample_rate, audio = wavfile.read(selected_path)
+
+            if sample_rate <= 0 or audio.size == 0:
+                raise ValueError("The WAV file contains no valid audio data.")
+
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Invalid WAV File",
+                (
+                    "The selected WAV file could not be loaded.\n\n"
+                    f"{exc}"
+                ),
+            )
+            return
+
+        self.input_duration_s = len(audio) / sample_rate
+        self.settings_panel.set_input_duration(self.input_duration_s)
+
+        self.input_wav = selected_path
+        self.settings_panel.set_input_wav(self.input_wav)
+        self.audio_playback_panel.load_original_audio(self.input_wav)
+
+        self.statusBar().showMessage(
+            f"Loaded input WAV: {self.input_wav.name}"
+        )
 
     def select_output_folder(self) -> None:
+        """Select the simulation output directory."""
+
         folder_name = QFileDialog.getExistingDirectory(
             self,
             "Select Output Folder",
-            "",
+            str(self.output_dir),
         )
 
         if folder_name:
-            self.output_dir = Path(folder_name)
+            selected_dir = Path(folder_name)
+
+            try:
+                selected_dir.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                QMessageBox.warning(
+                    self,
+                    "Invalid Output Folder",
+                    f"The selected output folder could not be used:\n\n{exc}",
+                )
+                return
+
+            self.output_dir = selected_dir
             self.settings_panel.set_output_dir(self.output_dir)
+            self.statusBar().showMessage(
+                f"Output folder selected: {self.output_dir}"
+            )
+
+    def validate_output_dir(self) -> bool:
+        """Verify that the output directory can be created and written to."""
+
+        try:
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+
+            test_file = self.output_dir / ".fmsim_write_test"
+            test_file.touch()
+            test_file.unlink()
+
+            return True
+
+        except OSError as exc:
+            QMessageBox.warning(
+                self,
+                "Output Folder Error",
+                (
+                    "The selected output folder is not writable.\n\n"
+                    f"{self.output_dir}\n\n"
+                    f"{exc}"
+                ),
+            )
+
+            self.statusBar().showMessage("Output folder is not writable.")
+            return False
 
     def open_output_folder(self) -> None:
         """Open the selected output folder in the system file explorer."""
 
         try:
             self.output_dir.mkdir(parents=True, exist_ok=True)
-            os.startfile(self.output_dir)
+            os.startfile(str(self.output_dir))
 
             self.statusBar().showMessage(
                 f"Opened output folder: {self.output_dir}"
@@ -213,22 +307,102 @@ class FMSimGui(QMainWindow):
             )
             self.statusBar().showMessage("Could not open output folder.")
 
+    def validate_input_wav(self) -> bool:
+        """Verify that the selected input WAV exists and can be read."""
+
+        if self.input_wav is None:
+            QMessageBox.warning(
+                self,
+                "No input WAV",
+                "Please select an input WAV file first."
+            )
+            return False
+        
+        if not self.input_wav.exists():
+            QMessageBox.warning(
+                self,
+                "Input File Missing",
+                (
+                    "The selected WAV file could not be found.\n\n"
+                    f"{self.input_wav}"
+                )
+            )
+            return False
+        
+        if self.input_wav.suffix.lower() != ".wav":
+            QMessageBox.warning(
+                self,
+                "Unsupported Input File",
+                "The selected input file must be a WAV file."
+            )
+            return False
+        
+        try:
+            sample_rate, audio = wavfile.read(self.input_wav)
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Invalid WAV File",
+                (
+                    "The selected WAV file could not be read.\n\n"
+                    f"{exc}"
+                )
+            )
+            return False
+        
+        if sample_rate <= 0:
+            QMessageBox.warning(
+                self,
+                "Invalid WAV File",
+                "The WAV file has an invalid sample rate."
+            )
+            return False
+
+        if audio.size == 0:
+            QMessageBox.warning(
+                self,
+                "Empty WAV File",
+                "The selected WAV file contains no audio samples."
+            )
+            return False
+    
+        self.input_duration_s = len(audio) / sample_rate
+        self.settings_panel.set_input_duration(self.input_duration_s)
+
+        return True
+
     def run_simulation_from_gui(self) -> None:
         """Build config from GUI settings and run the simulation."""
 
-        if self.input_wav is None:
+        if not self.validate_input_wav():
             self.settings_panel.set_status_text(
-                "Please select an input WAV file first."
+                "A valid input WAV file is required."
             )
-            self.statusBar().showMessage("No input WAV file selected.")
+            self.statusBar().showMessage("Invalid input WAV file.")
+            return
+
+        if not self.validate_output_dir():
             return
 
         self.audio_playback_panel.clear_recovered_audio()
 
-        config = self.settings_panel.get_config(
-            input_wav=self.input_wav,
-            output_dir=self.output_dir,
-        )
+        try:
+            config = self.settings_panel.get_config(
+                input_wav=self.input_wav,
+                output_dir=self.output_dir,
+                input_duration_s=self.input_duration_s,
+            )
+        except ValueError as exc:
+            QMessageBox.warning(
+                self,
+                "Invalid Simulation Settings",
+                str(exc),
+            )
+            self.settings_panel.set_status_text(
+                f"Invalid simulation settings:\n{exc}"
+            )
+            self.statusBar().showMessage("Invalid simulation settings.")
+            return
 
         self.set_running_state(True)
 
@@ -364,14 +538,11 @@ class FMSimGui(QMainWindow):
 
         QMessageBox.information(
             self,
-            "About FM Signal Simulator",
+            f"About {APP_NAME}",
             (
-                "FM Signal Simulator\n"
-                "Version 0.8.0\n\n"
-                "A Python-based FM signal simulation and analysis tool for "
-                "modulating WAV audio into complex IQ samples, applying configurable "
-                "RF impairments, demodulating the signal, and comparing original and "
-                "recovered audio.\n\n"
+                f"{APP_NAME}\n"
+                f"Version {APP_VERSION}\n\n"
+                f"{APP_DESCRIPTION}\n\n"
                 "Key features:\n"
                 "• WBFM and NBFM modulation\n"
                 "• Configurable RF signal impairments\n"
@@ -397,12 +568,69 @@ class FMSimGui(QMainWindow):
                 dialog.selected_background()
             )
 
+    def get_default_output_dir(self) -> Path:
+        """Return a writable default output directory."""
+
+        document_dir = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.DocumentsLocation
+        )
+
+        if document_dir:
+            return Path(document_dir) /"FM Signal Simulator" / "outputs"
+        
+        return Path.home() /"FM Signal Simulator" / "outputs"
+
+    def closeEvent(self, event) -> None:
+        """Clean up temporary playback files before closing."""
+
+        self.audio_playback_panel.cleanup_temp_audio()
+        event.accept()
+
+    def remove_stale_temp_files(self) -> None:
+        """Remove recovered playback files left by previous sessions."""
+
+        temp_dir = Path(tempfile.gettempdir()) / "fmsim_playback"
+
+        if not temp_dir.exists():
+            return
+
+        for file_path in temp_dir.glob("recovered_playback_*.wav"):
+            try:
+                file_path.unlink()
+            except OSError:
+                pass  
+
 def main() -> None:
     app = QApplication(sys.argv)
-    window = FMSimGui()
-    window.show()
-    sys.exit(app.exec())
 
+    app.setApplicationName(APP_NAME)
+    app.setApplicationVersion(APP_VERSION)
+    app.setOrganizationName("Greyson Meetze")
+
+    icon_path = resource_path("fmsim/resources/icons/fmsim.ico")
+    icon = QIcon(str(icon_path))
+    app.setWindowIcon(icon)
+
+    splash_path = resource_path("fmsim/resources/images/splash.png")
+    splash_pixmap = QPixmap(str(splash_path)).scaled(
+    600,
+    340,
+    Qt.AspectRatioMode.KeepAspectRatio,
+    Qt.TransformationMode.SmoothTransformation,
+)
+
+    splash = QSplashScreen(splash_pixmap)
+    splash.show()
+
+    app.processEvents()
+
+    window = FMSimGui()
+    window.setWindowIcon(icon)
+    window.show()
+
+    splash.finish(window)
+
+    sys.exit(app.exec())
 
 if __name__ == "__main__":
     main()

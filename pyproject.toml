@@ -1,26 +1,42 @@
 [project]
 name = "fm-signal-simulator"
-version = "0.8.0"
-description = "A Python FM signal simulator with configurable RF impairments, CLI support, and an integrated PySide6 GUI for IQ, plot, and audio playback visualization."
+version = "0.9.0"
+description = "A Python FM signal simulator with configurable RF impairments, IQ analysis, recovered audio playback, CLI support, and an integrated PySide6 GUI."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-    { name = "Greyson Meetze" }
+{ name = "Greyson Meetze" }
 ]
 dependencies = [
-    "numpy",
-    "scipy",
-    "matplotlib",
-    "PySide6"
+"numpy",
+"scipy",
+"matplotlib",
+"PySide6"
+]
+
+[project.optional-dependencies]
+dev = [
+"pyinstaller"
 ]
 
 [project.urls]
 Homepage = "https://github.com/Greyraid/fm-signal-simulator"
 Repository = "https://github.com/Greyraid/fm-signal-simulator"
+Issues = "https://github.com/Greyraid/fm-signal-simulator/issues"
 
 [project.scripts]
 fmsim = "fmsim.cli:main"
+fmsim-gui = "fmsim.gui.main_window:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["fmsim*"]
+
+[tool.setuptools.package-data]
+fmsim = [
+"resources/icons/*.ico",
+"resources/images/*.png"
+]

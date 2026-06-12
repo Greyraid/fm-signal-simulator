@@ -455,12 +455,54 @@ class SettingsPanel(QWidget):
         self.status_box.setText(message)
 
     def set_running_state(self, is_running: bool) -> None:
-        """Enable or disable run controls while simulation is running."""
+        """Enable or disable settings while a simulation is running."""
 
-        self.run_button.setEnabled(not is_running)
-        self.open_output_button.setEnabled(not is_running)
+        enabled = not is_running
 
-    def get_config(self, input_wav: Path, output_dir: Path) -> SimulationConfig:
+        self.run_button.setEnabled(enabled)
+        self.open_output_button.setEnabled(enabled)
+        self.input_button.setEnabled(enabled)
+        self.output_button.setEnabled(enabled)
+
+        self.mode_box.setEnabled(enabled)
+        self.save_iq_check.setEnabled(enabled)
+        self.save_plots_check.setEnabled(enabled)
+        self.save_audio_check.setEnabled(enabled)
+
+        impairment_checks = (
+            self.use_snr_check,
+            self.use_freq_offset_check,
+            self.use_tone_jammer_check,
+            self.use_dropout_check,
+            self.use_dc_offset_check,
+            self.use_iq_imbalance_check,
+            self.use_seed_check,
+        )
+
+        for checkbox in impairment_checks:
+            checkbox.setEnabled(enabled)
+
+        if enabled:
+            self.update_impairment_controls()
+        else:
+            controls = (
+                self.snr_box,
+                self.freq_offset_box,
+                self.tone_jammer_box,
+                self.tone_jammer_power_box,
+                self.dropout_start_box,
+                self.dropout_duration_box,
+                self.dc_i_box,
+                self.dc_q_box,
+                self.iq_gain_imbalance_box,
+                self.iq_phase_imbalance_box,
+                self.seed_box,
+            )
+
+            for control in controls:
+                control.setEnabled(False)
+
+    def get_config(self, input_wav: Path, output_dir: Path, input_duration_s: float | None = None) -> SimulationConfig:
         """Build a SimulationConfig from the current settings panel values."""
 
         snr_db = self.snr_box.value() if self.use_snr_check.isChecked() else None
@@ -494,6 +536,26 @@ class SettingsPanel(QWidget):
             if self.use_dropout_check.isChecked()
             else 0.0
         )
+
+        if self.use_dropout_check.isChecked():
+            if dropout_duration <= 0:
+                raise ValueError(
+                    "IQ dropout duration must be greater than zero."
+                )
+
+            if input_duration_s is not None:
+                if dropout_start is not None and dropout_start >= input_duration_s:
+                    raise ValueError(
+                        "IQ dropout start time occurs after the input audio ends."
+                    )
+                
+                if (
+                  dropout_start is not None 
+                  and dropout_start + dropout_duration > input_duration_s  
+                ):
+                    raise ValueError(
+                        "IQ dropout extends beyond the end of the input audio."
+                    )
 
         dc_i = self.dc_i_box.value() if self.use_dc_offset_check.isChecked() else 0.0
         dc_q = self.dc_q_box.value() if self.use_dc_offset_check.isChecked() else 0.0
@@ -534,3 +596,11 @@ class SettingsPanel(QWidget):
             save_plots=self.save_plots_check.isChecked(),
             save_config=True,
         )
+    
+    def set_input_duration(self, duration_s: float) -> None:
+        """Limit dropout controls to the input audio duration."""
+
+        duration_s = max(0.0, duration_s)
+
+        self.dropout_start_box.setMaximum(duration_s)
+        self.dropout_duration_box.setMaximum(duration_s)

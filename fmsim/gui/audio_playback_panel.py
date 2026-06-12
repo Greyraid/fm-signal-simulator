@@ -16,16 +16,19 @@ from PySide6.QtWidgets import (
 
 from fmsim.playback import AudioPlayer
 
-
 class AudioPlaybackPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self.current_recovered_temp_path: Path | None = None
 
         self.original_player = AudioPlayer(self)
         self.recovered_player = AudioPlayer(self)
 
         self.original_slider_is_pressed = False
         self.recovered_slider_is_pressed = False
+
+        self.recovered_audio_counter = 0
 
         self.create_layout()
         self.connect_signals()
@@ -150,18 +153,42 @@ class AudioPlaybackPanel(QWidget):
             self.original_group["file_label"].setText(f"File: {file_path}")
 
     def load_recovered_audio(self, file_path: Path) -> None:
+        """Load recovered audio into the playback controls."""
+
+        self.recovered_player.stop()
+        self.recovered_group["slider"].setValue(0)
+        self.recovered_group["slider"].setRange(0, 0)
+        self.recovered_group["time_label"].setText("00:00 / 00:00")
+
         loaded = self.recovered_player.load(file_path)
 
         self.set_section_enabled(self.recovered_group, loaded)
-                
-        if loaded:
-            self.recovered_group["file_label"].setText(f"File: {file_path}")
 
-    def load_recovered_audio_array(self, audio: np.ndarray, fs_audio: int, name: str = "recovered_playback.wav",) -> None:
+        if loaded:
+            self.recovered_group["file_label"].setText(
+                f"File: {file_path}"
+            )
+        else:
+            self.recovered_group["file_label"].setText(
+                "Recovered audio could not be loaded."
+            )
+
+    def load_recovered_audio_array(self, audio: np.ndarray, fs_audio: int) -> None:
+        """Write recovered audio to a temporary WAV file and replace the old one."""
+
         temp_dir = Path(tempfile.gettempdir()) / "fmsim_playback"
         temp_dir.mkdir(parents=True, exist_ok=True)
 
-        temp_path = temp_dir / name
+        self.recovered_audio_counter += 1
+        temp_path = temp_dir / (
+            f"recovered_playback_{self.recovered_audio_counter}.wav"
+        )
+
+        audio = np.asarray(audio)
+
+        if audio.size == 0:
+            self.clear_recovered_audio()
+            return
 
         max_value = np.max(np.abs(audio))
 
@@ -171,9 +198,19 @@ class AudioPlaybackPanel(QWidget):
         audio_int16 = np.clip(audio, -1.0, 1.0)
         audio_int16 = (audio_int16 * 32767).astype(np.int16)
 
-        wavfile.write(temp_path, fs_audio, audio_int16)
+        wavfile.write(str(temp_path), int(fs_audio), audio_int16)
 
+        previous_path = self.current_recovered_temp_path
+
+        self.recovered_player.unload()
         self.load_recovered_audio(temp_path)
+        self.current_recovered_temp_path = temp_path
+
+        if previous_path is not None and previous_path.exists():
+            try:
+                previous_path.unlink()
+            except OSError:
+                pass
 
     def update_original_duration(self, duration_ms: int) -> None:
         self.original_group["slider"].setRange(0, duration_ms)
@@ -254,7 +291,7 @@ class AudioPlaybackPanel(QWidget):
         self.original_group["volume_label"].setText(f"Volume: {value}%")
 
     def set_recovered_volume(self, value: int) -> None:
-        """Updtae recovered audio playback volume."""
+        """Update recovered audio playback volume."""
 
         self.recovered_player.set_volume(value / 100.0)
         self.recovered_group["volume_label"].setText(f"Volume: {value}%")
@@ -268,11 +305,32 @@ class AudioPlaybackPanel(QWidget):
         section["slider"].setEnabled(enabled)
 
     def clear_recovered_audio(self) -> None:
-        """Clear recovered playback  until a new simulation finished."""
+        """Clear recovered playback until a new simulation finishes."""
 
+        self.recovered_player.stop()
         self.recovered_player.reset()
+
         self.recovered_group["file_label"].setText("No file loaded.")
         self.recovered_group["slider"].setRange(0, 0)
-        self.recovered_group["time_label"].setText("0:00 / 0:00")
+        self.recovered_group["slider"].setValue(0)
+        self.recovered_group["time_label"].setText("00:00 / 00:00")
+
+        self.recovered_slider_is_pressed = False
 
         self.set_section_enabled(self.recovered_group, False)
+
+    def cleanup_temp_audio(self) -> None:
+        """Delete temporary recovered playback files."""
+
+        self.recovered_player.unload()
+
+        if (
+            self.current_recovered_temp_path is not None
+            and self.current_recovered_temp_path.exists()
+        ):
+            try:
+                self.current_recovered_temp_path.unlink()
+            except OSError:
+                pass
+
+        self.current_recovered_temp_path = None

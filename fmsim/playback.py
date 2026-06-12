@@ -116,3 +116,9 @@ class AudioPlayer(QObject):
         audio = np.clip(audio, -1.0, 1.0)
 
         return (audio * 32767).astype(np.int16)
+    
+    def unload(self) -> None:
+        """Stop playback and release the currently loaded audio file."""
+
+        self.player.stop()
+        self.player.setSource(QUrl())

@@ -1,38 +1,79 @@
 # Python cache
-__pycache__/
+
+**pycache**/
 *.py[cod]
 *$py.class
 
 # Virtual environments
+
 .venv/
 venv/
 env/
 
 # Build / packaging
+
 build/
 dist/
 *.egg-info/
+*.egg
+pip-wheel-metadata/
 
-# Outputs from simulator runs
+# PyInstaller temporary files
+
+*.manifest
+
+# Keep PyInstaller build configuration
+
+!*.spec
+
+# Simulator output folders and generated files
+
 outputs/
 *.npz
 *.wav
+
+# Generated plot images
+
 *.png
 
+# Keep application resource images
+
+!fmsim/resources/
+!fmsim/resources/**
+!README-assets/
+!README-assets/**
+
+# Temporary audio playback files
+
+fmsim_playback/
+temp/
+tmp/
+
+# Test and coverage files
+
+run_test.py
+test_*.py
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Type-checking and linting caches
+
+.mypy_cache/
+.ruff_cache/
+
 # Local editor/project settings
+
 .vscode/
 .idea/
 
 # OS files
+
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Internal planning files
+
 change_log_internal.txt
 roadmap_internal.txt
-
-# Local test/temp files
-run_test.py
-test_*.py
-temp/
-tmp/
