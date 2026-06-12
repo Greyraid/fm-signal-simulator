@@ -63,6 +63,8 @@ class PlotPanel(QWidget):
 
         self.time_controls = self.create_time_controls()
         layout.addWidget(self.time_controls)
+        self.tabs.currentChanged.connect(self.update_time_controls_visibility)
+        self.update_time_controls_visibility()
 
         self.show_empty_message()
 
@@ -166,6 +168,18 @@ class PlotPanel(QWidget):
 
         return controls
     
+    def update_time_controls_visibility(self) -> None:
+        """Show time controls only on time-wondow plot tabs."""
+
+        current_tab = self.tabs.tabText(self.tabs.currentIndex())
+
+        show_controls = current_tab in {
+            "IQ Time",
+            "Recovered Audio"
+        }
+
+        self.time_controls.setVisible(show_controls)
+
     def configure_time_controls(self, result) -> None:
         """Configure time slider limits after a simulation run."""
 

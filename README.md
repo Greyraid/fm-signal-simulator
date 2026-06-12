@@ -6,15 +6,15 @@ This project is designed as a learning and research tool for digital signal proc
 
 ## Current Version
 
-**v0.7**
+**v0.8**
 
-Version 0.7 focuses on integrated GUI plot viewing and improved signal analysis tools.
+Version 0.8 adds integrated audio playback and improved recovered-audio handling to the PySide6 GUI.
 
-The GUI now displays simulation results directly inside the main application window using a tabbed plot workspace. Integrated plots include IQ time-domain, IQ constellation, clean vs impaired PSD comparison, spectrogram, and recovered audio waveform views.
+The GUI now includes a dedicated Audio Playback tab for comparing the original input WAV with the recovered audio produced after FM modulation, signal impairments, and demodulation. Each audio player includes independent play, stop, reset, seek, time-display, and volume controls.
 
-This release also adds scrollable time-window controls for the IQ time-domain and recovered audio plots, allowing the user to inspect different parts of the signal without plotting the entire waveform at once. A plot appearance menu was also added so the user can change the plot background color from the Tools menu.
+Recovered audio can be played directly after every simulation, even when the Save Recovered Audio option is unchecked. When saving is disabled, the GUI creates a temporary playback copy without exporting a permanent WAV file to the selected output folder.
 
-The GUI has also been refactored into smaller files for better readability and maintainability.
+This release also improves the plot workspace by showing time-window controls only on the IQ Time and Recovered Audio plot tabs. Impairment information buttons were added to the settings panel, and all optional export checkboxes are now unchecked by default.
 
 ## Signal Chain
 
@@ -64,6 +64,17 @@ Optional config JSON export
 * Plot appearance dialog for changing plot background color
 * Disabled value controls when their impairment checkbox is unchecked
 * Open output folder option from the File menu, toolbar, and Simulation Control panel
+* Dedicated Audio Playback tab in the GUI
+* Independent playback for original input audio and recovered output audio
+* Play, stop, reset, and draggable seek controls
+* Playback position and duration displays
+* Independent volume controls for original and recovered audio
+* Temporary recovered-audio playback when WAV export is disabled
+* Playback-compatible temporary WAV conversion
+* Playback controls disabled until audio is available
+* Impairment information buttons in the Simulation Settings panel
+* Save IQ, Save Plots, and Save Recovered Audio options unchecked by default
+
 
 ## Project Structure
 
@@ -78,11 +89,13 @@ fm-signal-simulator/
     fm.py
     impairments.py
     io.py
+    playback.py
     plots.py
     simulation.py
     gui/
       __init__.py
       appearance_dialog.py
+      audio_playback_panel.py
       main_window.py
       plot_panel.py
       settings_panel.py
@@ -92,6 +105,7 @@ fm-signal-simulator/
     sample_audio.wav
   outputs/
   README.md
+  pyproject.toml
 ```
 
 ## Installation
@@ -123,7 +137,7 @@ The GUI provides a desktop engineering-tool style layout with:
 * A top menu bar for File, View, Tools, and Help actions
 * A toolbar for quick access to common commands
 * A right-side Simulation Settings panel
-* A central tabbed plot workspace for integrated signal visualization
+* A central workspace with separate Plots and Audio Playback tabs
 * A bottom status bar for run status and progress indication
 
 The GUI allows the user to:
@@ -139,6 +153,13 @@ The GUI allows the user to:
 * Adjust the visible time window for IQ time-domain and recovered audio plots
 * Change the plot background color from the Tools menu
 * View basic help and impairment information from the Help menu
+* Play the original input audio directly from the GUI
+* Play recovered audio after each simulation
+* Play recovered audio even when WAV export is disabled
+* Seek through original and recovered audio using draggable sliders
+* Independently control original and recovered playback volume
+* Stop playback at the current position or reset it to the beginning
+* View short explanations for each impairment using information buttons
 
 Integrated GUI plot tabs include:
 * IQ Time
@@ -146,6 +167,10 @@ Integrated GUI plot tabs include:
 * PSD Comparison
 * Spectrogram
 * Recovered Audio
+
+The Audio Playback tab contains separate players for the original input WAV and recovered output audio. Each player includes play, stop, reset, seek, elapsed-time, duration, and volume controls. Original playback becomes available after selecting an input WAV, while recovered playback becomes available after a simulation completes.
+
+The Save Recovered Audio option controls permanent WAV export only. Recovered audio remains available for playback when this option is unchecked by using a temporary playback file.
 
 The IQ Time and Recovered Audio plots include a time slider and window length selector so different parts of the signal can be inspected without plotting the entire waveform at once.
 
@@ -362,6 +387,27 @@ outputs/readme_demo/config.json
 ```
 
 ## Version History
+
+### v0.8
+- Added a dedicated Audio Playback tab to the GUI
+- Added original input WAV playback
+- Added recovered output audio playback
+- Added independent Play, Stop, and Reset controls
+- Changed Stop behavior to pause at the current playback position
+- Added draggable playback seek sliders
+- Added elapsed-time and total-duration displays
+- Added independent volume controls for original and recovered audio
+- Added playback-compatible temporary WAV conversion
+- Added recovered-audio playback when Save Recovered Audio is unchecked
+- Separated recovered-audio playback from permanent WAV export
+- Disabled playback controls until the corresponding audio is available
+- Cleared previous recovered audio when a new simulation begins
+- Added `playback.py` for reusable audio playback logic
+- Added `audio_playback_panel.py` for the GUI playback interface
+- Limited plot time-window controls to the IQ Time and Recovered Audio tabs
+- Added information buttons for each signal impairment
+- Changed optional save settings to unchecked by default
+- Updated the project version to `0.8.0`
 
 ### v0.7
 - Added integrated GUI plot viewing inside the main application window

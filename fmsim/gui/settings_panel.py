@@ -4,6 +4,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QFormLayout,
     QGroupBox,
     QLabel,
@@ -11,6 +12,8 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QTextEdit,
     QSizePolicy,
+    QToolButton,
+    QMessageBox
 )
 
 from fmsim.simulation import SimulationConfig
@@ -66,10 +69,10 @@ class SettingsPanel(QWidget):
         self.save_iq_check.setChecked(False)
 
         self.save_plots_check = QCheckBox("Save Plots")
-        self.save_plots_check.setChecked(True)
+        self.save_plots_check.setChecked(False)
 
         self.save_audio_check = QCheckBox("Save Recovered Audio")
-        self.save_audio_check.setChecked(True)
+        self.save_audio_check.setChecked(False)
 
         # FM Settings Widgets
         # =======================================
@@ -191,6 +194,54 @@ class SettingsPanel(QWidget):
         layout.addWidget(self.create_run_section())
         layout.addStretch()
 
+    def create_help_button(self, title: str, message: str) -> QToolButton:
+        """Create a small help button for an impairment setting."""
+
+        button = QToolButton()
+        button.setText("ⓘ")
+        button.setToolTip(title)
+        button.setAutoRaise(True)
+        button.setFixedSize(22, 22)
+        button.setStyleSheet(
+            """
+            QToolButton {
+                color: #2f80ed;
+                font-weight: bold;
+                border: none;
+                background: transparent;
+            }
+
+            QToolButton:hover {
+                color: #56a3ff;
+            }
+            """
+        )
+
+        button.clicked.connect(
+            lambda: QMessageBox.information(self, title, message)
+        )
+
+        return button
+    
+    def create_checkbox_with_help(self, checkbox: QCheckBox, title: str, message: str) -> QWidget:
+        """Create a checkbox row with a small help button."""
+
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        checkbox.setSizePolicy(
+            QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Preferred,
+        )
+
+        layout.addWidget(checkbox)
+        layout.addWidget(self.create_help_button(title, message))
+        layout.addStretch(1)
+
+        return widget
+
     def update_impairment_controls(self) -> None:
         """Enable controls only when their impairment checkbox is checked"""
         self.snr_box.setEnabled(self.use_snr_check.isChecked())
@@ -270,44 +321,103 @@ class SettingsPanel(QWidget):
 
         # AWGN
         awgn_form = self.make_impairment_form()
-        awgn_form.addRow(self.use_snr_check, self.snr_box)
+        awgn_help = self.create_checkbox_with_help(
+            self.use_snr_check,
+            "AWGN",
+            (
+                "Additive White Gaussian Noise adds random noise to the IQ signal.\n\n"
+                "Lower SNR values create a noisier signal.\n"
+                "Higher SNR values create a cleaner signal."
+            ),
+        )
+        awgn_form.addRow(awgn_help, self.snr_box)
         outer.addLayout(awgn_form)
 
         # Frequency Offset
         freq_form = self.make_impairment_form()
-        freq_form.addRow(self.use_freq_offset_check, self.freq_offset_box)
+        freq_help = self.create_checkbox_with_help(
+            self.use_freq_offset_check,
+            "Frequency Offset",
+            (
+                "Frequency offset shifts the signal in frequency.\n\n"
+                "This simulates tuner error, oscillator mismatch, or Doppler-like offset."
+            ),
+        )
+        freq_form.addRow(freq_help, self.freq_offset_box)
         outer.addLayout(freq_form)
 
         # Tone Jammer
         jammer_form = self.make_impairment_form()
-        jammer_form.addRow(self.use_tone_jammer_check, self.tone_jammer_box)
+        jammer_help = self.create_checkbox_with_help(
+            self.use_tone_jammer_check,
+            "Tone Jammer",
+            (
+                "Tone jammer adds a single interfering tone to the IQ signal.\n\n"
+                "The frequency controls where the jammer appears.\n"
+                "The power controls how strong the jammer is."
+            ),
+        )
+        jammer_form.addRow(jammer_help, self.tone_jammer_box)
         jammer_form.addRow("Jammer Power:", self.tone_jammer_power_box)
         outer.addLayout(jammer_form)
 
         # IQ Dropout
         dropout_form = self.make_impairment_form()
-        dropout_form.addRow(self.use_dropout_check)
+        dropout_help = self.create_checkbox_with_help(
+            self.use_dropout_check,
+            "IQ Dropout",
+            (
+                "IQ dropout removes part of the IQ signal for a selected time range.\n\n"
+                "This simulates signal loss, blanking, or a short receiver/data dropout."
+            ),
+        )
+        dropout_form.addRow(dropout_help)
         dropout_form.addRow("Start Time:", self.dropout_start_box)
         dropout_form.addRow("Duration:", self.dropout_duration_box)
         outer.addLayout(dropout_form)
 
         # DC Offset
         dc_form = self.make_impairment_form()
-        dc_form.addRow(self.use_dc_offset_check)
+        dc_help = self.create_checkbox_with_help(
+            self.use_dc_offset_check,
+            "DC Offset",
+            (
+                "DC offset adds a constant value to the I and/or Q channel.\n\n"
+                "This simulates receiver bias or imperfect IQ hardware calibration."
+            ),
+        )
+        dc_form.addRow(dc_help)
         dc_form.addRow("I Offset:", self.dc_i_box)
         dc_form.addRow("Q Offset:", self.dc_q_box)
         outer.addLayout(dc_form)
 
         # IQ Imbalance
         iq_form = self.make_impairment_form()
-        iq_form.addRow(self.use_iq_imbalance_check)
+        iq_help = self.create_checkbox_with_help(
+            self.use_iq_imbalance_check,
+            "IQ Imbalance",
+            (
+                "IQ imbalance simulates mismatch between the I and Q signal paths.\n\n"
+                "Gain error changes the relative amplitude.\n"
+                "Phase error changes the angle between I and Q."
+            ),
+        )
+        iq_form.addRow(iq_help)
         iq_form.addRow("Gain Error:", self.iq_gain_imbalance_box)
         iq_form.addRow("Phase Error:", self.iq_phase_imbalance_box)
         outer.addLayout(iq_form)
 
         # Random Seed
         seed_form = self.make_impairment_form()
-        seed_form.addRow(self.use_seed_check, self.seed_box)
+        seed_help = self.create_checkbox_with_help(
+            self.use_seed_check,
+            "Random Seed",
+            (
+                "A random seed makes noise generation repeatable.\n\n"
+                "Using the same seed and same settings should produce the same AWGN result."
+            ),
+        )
+        seed_form.addRow(seed_help, self.seed_box)
         outer.addLayout(seed_form)
 
         group.setLayout(outer)

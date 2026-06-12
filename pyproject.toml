@@ -1,7 +1,7 @@
 [project]
 name = "fm-signal-simulator"
-version = "0.7.0"
-description = "A Python FM signal simulator with configurable RF impairments, CLI support, and an integrated PySide6 GUI for IQ and audio visualization."
+version = "0.8.0"
+description = "A Python FM signal simulator with configurable RF impairments, CLI support, and an integrated PySide6 GUI for IQ, plot, and audio playback visualization."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [

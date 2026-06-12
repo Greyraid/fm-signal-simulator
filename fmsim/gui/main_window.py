@@ -13,12 +13,14 @@ from PySide6.QtWidgets import (
     QToolBar,
     QMessageBox,
     QProgressBar,
+    QTabWidget
 )
 
 from fmsim.gui.settings_panel import SettingsPanel
 from fmsim.gui.worker import SimulationWorker
 from fmsim.gui.plot_panel import PlotPanel
 from fmsim.gui.appearance_dialog import PlotAppearanceDialog
+from fmsim.gui.audio_playback_panel import AudioPlaybackPanel
 
 class FMSimGui(QMainWindow):
     def __init__(self) -> None:
@@ -123,8 +125,15 @@ class FMSimGui(QMainWindow):
     def create_workspace(self) -> None:
         """Create the central chart workspace."""
 
+        self.workspace_tabs = QTabWidget()
+        
         self.plot_panel = PlotPanel()
-        self.setCentralWidget(self.plot_panel)
+        self.audio_playback_panel = AudioPlaybackPanel()
+
+        self.workspace_tabs.addTab(self.plot_panel, "Plots")
+        self.workspace_tabs.addTab(self.audio_playback_panel, "Audio Playback")
+
+        self.setCentralWidget(self.workspace_tabs)
 
     def create_settings_dock(self) -> None:
         """Create the dockable simulation settings panel."""
@@ -157,7 +166,7 @@ class FMSimGui(QMainWindow):
 
         self.resizeDocks(
             [self.settings_dock],
-            [355],
+            [380],
             Qt.Orientation.Horizontal,
         )
 
@@ -174,6 +183,7 @@ class FMSimGui(QMainWindow):
         if file_name:
             self.input_wav = Path(file_name)
             self.settings_panel.set_input_wav(self.input_wav)
+            self.audio_playback_panel.load_original_audio(self.input_wav)
 
     def select_output_folder(self) -> None:
         folder_name = QFileDialog.getExistingDirectory(
@@ -213,6 +223,8 @@ class FMSimGui(QMainWindow):
             self.statusBar().showMessage("No input WAV file selected.")
             return
 
+        self.audio_playback_panel.clear_recovered_audio()
+
         config = self.settings_panel.get_config(
             input_wav=self.input_wav,
             output_dir=self.output_dir,
@@ -249,6 +261,12 @@ class FMSimGui(QMainWindow):
 
         if result.demod_audio_path is not None:
             message += f"Recovered Audio: {result.demod_audio_path}\n"
+
+        if result.recovered_audio is not None and result.fs_audio is not None:
+            self.audio_playback_panel.load_recovered_audio_array(
+                result.recovered_audio,
+                result.fs_audio
+            )
 
         if result.plot_paths:
             message += "\nPlots:\n"
@@ -348,10 +366,21 @@ class FMSimGui(QMainWindow):
             self,
             "About FM Signal Simulator",
             (
-                "FM Signal Simulator\n\n"
-                "A Python-based FM signal simulation tool for generating, impairing, "
-                "analyzing, and recovering FM-modulated signals from WAV audio files.\n\n"
-                "Current focus: v0.7 integrated plot display."
+                "FM Signal Simulator\n"
+                "Version 0.8.0\n\n"
+                "A Python-based FM signal simulation and analysis tool for "
+                "modulating WAV audio into complex IQ samples, applying configurable "
+                "RF impairments, demodulating the signal, and comparing original and "
+                "recovered audio.\n\n"
+                "Key features:\n"
+                "• WBFM and NBFM modulation\n"
+                "• Configurable RF signal impairments\n"
+                "• Integrated IQ and audio plots\n"
+                "• Original and recovered audio playback\n"
+                "• IQ, plot, configuration, and recovered WAV export\n"
+                "• Command-line and PySide6 GUI interfaces\n\n"
+                "Created by Greyson Meetze\n"
+                "Built with Python, NumPy, SciPy, Matplotlib, and PySide6."
             ),
         )
 
